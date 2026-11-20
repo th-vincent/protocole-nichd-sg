@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation d'audition NICHD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="barre-haut">
+  <div class="marque">
+    <span class="logo" aria-hidden="true"></span>
+    <div>
+      <p class="titre-app">Salle d'audition</p>
+      <p class="sous">Simulation du protocole NICHD</p>
+    </div>
+  </div>
+  <div class="rec" id="rec"><i></i>REC <span id="minuteur">00:00</span></div>
+</header>
+
+<!-- ───────── ACCUEIL ───────── -->
+<main id="ecran-accueil" class="band accueil">
+  <div class="accueil-texte">
+    <h1>Entraînez-vous à l'audition d'un enfant</h1>
+    <p class="chapo" id="contexte"></p>
+    <label class="champ">Scénario
+      <select id="choix-scenario"></select>
+    </label>
+    <fieldset class="options">
+      <legend>Mode</legend>
+      <label><input type="checkbox" id="opt-feedback" checked> Retour pédagogique après chaque question</label>
+      <label><input type="checkbox" id="opt-jauges" checked> Afficher la confiance et le stress de l'enfant</label>
+    </fieldset>
+    <button class="btn principal" id="btn-commencer">Entrer dans la salle</button>
+    <p class="note">Prototype pédagogique, scénario fictif. Le contenu doit être validé par un formateur NICHD avant toute utilisation en formation.</p>
+  </div>
+  <ol class="etapes">
+    <li><b>Lisez la réplique</b> de l'enfant et observez son attitude.</li>
+    <li><b>Choisissez votre intervention</b> parmi les propositions (touches 1 à 4).</li>
+    <li><b>L'enfant réagit</b> selon le type de question : il s'ouvre, se ferme ou acquiesce.</li>
+    <li><b>Le débrief</b> mesure vos questions ouvertes, les faits recueillis et les éléments contaminés.</li>
+  </ol>
+</main>
+
+<!-- ───────── JEU ───────── -->
+<main id="ecran-jeu" class="jeu" hidden>
+  <nav class="phases-nav" aria-label="Phases du protocole">
+    <ol id="phases"></ol>
+  </nav>
+
+  <div class="grille">
+    <section class="scene-col">
+      <div class="fig scene">
+        <svg viewBox="0 0 600 420" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Salle d'audition : l'enfant est assise sur un canapé">
+          <defs>
+            <linearGradient id="g-mur" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--mur-haut)"/><stop offset="1" stop-color="var(--mur-bas)"/>
+            </linearGradient>
+            <linearGradient id="g-sol" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--sol-haut)"/><stop offset="1" stop-color="var(--sol-bas)"/>
+            </linearGradient>
+            <radialGradient id="g-lumiere" cx=".25" cy=".1" r=".8">
+              <stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="600" height="330" fill="url(#g-mur)"/>
+          <rect y="330" width="600" height="90" fill="url(#g-sol)"/>
+          <rect y="326" width="600" height="6" fill="var(--plinthe)"/>
+          <rect width="600" height="420" fill="url(#g-lumiere)"/>
+
+          <!-- dessin d'enfant encadré -->
+          <g transform="translate(62 62)">
+            <rect width="104" height="80" rx="4" fill="#fff" stroke="var(--cadre)" stroke-width="6"/>
+            <circle cx="30" cy="30" r="12" fill="#ffc94a"/>
+            <path d="M30 12v-6M30 54v-6M12 30h-6M54 30h-6" stroke="#ffc94a" stroke-width="3" stroke-linecap="round"/>
+            <path d="M8 70 Q40 46 62 62 T100 56 V74 H8Z" fill="#7cc4a4"/>
+            <path d="M70 40h20v18h-20z" fill="#e8664f"/><path d="M66 40l14-12 14 12z" fill="#b8423a"/>
+          </g>
+
+          <!-- caméra -->
+          <g transform="translate(512 34)">
+            <rect x="-4" y="-6" width="8" height="18" fill="var(--cadre)"/>
+            <rect x="-26" y="10" width="48" height="28" rx="6" fill="#2b2f45"/>
+            <circle cx="-8" cy="24" r="9" fill="#11131f" stroke="#59607f" stroke-width="2"/>
+            <circle cx="12" cy="18" r="3.5" class="voyant"/>
+          </g>
+
+          <!-- plante -->
+          <g transform="translate(530 262)">
+            <path d="M0 0 C-30 -40 -20 -70 0 -84 C6 -60 10 -30 0 0Z" fill="#4f9d6e"/>
+            <path d="M4 0 C30 -30 40 -56 26 -74 C14 -50 6 -26 4 0Z" fill="#3f8a5d"/>
+            <path d="M-2 0 C-36 -14 -46 -34 -40 -48 C-24 -36 -10 -20 -2 0Z" fill="#5fb07f"/>
+            <path d="M-20 0 h44 l-6 66 h-32z" fill="var(--pot)"/>
+            <path d="M-20 0 h44 v8 h-44z" fill="#000" opacity=".12"/>
+          </g>
+
+          <!-- coffre à jouets -->
+          <g transform="translate(26 292)">
+            <rect width="92" height="74" rx="8" fill="var(--coffre)"/>
+            <rect y="0" width="92" height="14" rx="6" fill="#000" opacity=".12"/>
+            <rect x="12" y="-18" width="22" height="22" rx="3" fill="#e8664f" transform="rotate(-8 23 -7)"/>
+            <circle cx="62" cy="-8" r="12" fill="#5a8bd8"/>
+            <text x="20" y="10" font-size="14" font-weight="700" fill="#fff" font-family="Lexend, sans-serif">A</text>
+          </g>
+
+          <!-- ombre au sol -->
+          <ellipse cx="300" cy="372" rx="200" ry="14" fill="#000" opacity=".12"/>
+
+          <!-- canapé -->
+          <rect x="150" y="196" width="300" height="118" rx="28" fill="var(--canape)"/>
+          <rect x="150" y="196" width="300" height="12" rx="6" fill="#fff" opacity=".12"/>
+          <rect x="138" y="290" width="324" height="56" rx="18" fill="var(--canape-fonce)"/>
+          <rect x="114" y="238" width="54" height="110" rx="24" fill="var(--canape)"/>
+          <rect x="432" y="238" width="54" height="110" rx="24" fill="var(--canape)"/>
+          <rect x="132" y="344" width="10" height="16" fill="#3b3226"/><rect x="458" y="344" width="10" height="16" fill="#3b3226"/>
+
+          <!-- enfant -->
+          <g id="enfant" data-expr="neutre">
+            <rect x="272" y="300" width="22" height="62" rx="9" fill="#3b4a7a"/>
+            <rect x="306" y="300" width="22" height="62" rx="9" fill="#3b4a7a"/>
+            <ellipse cx="282" cy="366" rx="15" ry="7" fill="#e8664f"/>
+            <ellipse cx="318" cy="366" rx="15" ry="7" fill="#e8664f"/>
+            <rect x="256" y="226" width="88" height="86" rx="32" fill="var(--pull)"/>
+            <path d="M262 262 h76" stroke="#fff" stroke-width="5" opacity=".5"/>
+            <g class="bras-le-long">
+              <rect x="240" y="236" width="22" height="58" rx="11" fill="var(--pull)"/>
+              <rect x="338" y="236" width="22" height="58" rx="11" fill="var(--pull)"/>
+              <circle cx="251" cy="296" r="9" fill="var(--peau)"/><circle cx="349" cy="296" r="9" fill="var(--peau)"/>
+            </g>
+            <g class="bras-croises">
+              <rect x="262" y="262" width="76" height="22" rx="11" fill="var(--pull-fonce)"/>
+              <circle cx="266" cy="273" r="8" fill="var(--peau)"/><circle cx="334" cy="273" r="8" fill="var(--peau)"/>
+            </g>
+            <rect x="292" y="214" width="16" height="16" fill="var(--peau-ombre)"/>
+            <g class="tete">
+              <ellipse cx="300" cy="186" rx="47" ry="48" fill="var(--cheveux)"/>
+              <circle cx="251" cy="204" r="13" fill="var(--cheveux)"/><circle cx="349" cy="204" r="13" fill="var(--cheveux)"/>
+              <circle cx="254" cy="194" r="4" fill="#e8664f"/><circle cx="346" cy="194" r="4" fill="#e8664f"/>
+              <ellipse cx="300" cy="196" rx="36" ry="38" fill="var(--peau)"/>
+              <path d="M262 186 Q266 146 300 145 Q334 146 338 186 Q322 166 300 168 Q280 166 262 186Z" fill="var(--cheveux)"/>
+              <circle cx="279" cy="210" r="6" fill="#f08a80" opacity=".35"/><circle cx="321" cy="210" r="6" fill="#f08a80" opacity=".35"/>
+              <g class="e e-neutre" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
+                <circle cx="286" cy="198" r="4" fill="#3a2a22" stroke="none"/><circle cx="314" cy="198" r="4" fill="#3a2a22" stroke="none"/>
+                <path d="M279 186 L292 186 M308 186 L321 186"/><path d="M293 217 L307 217"/>
+              </g>
+              <g class="e e-detendu" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
+                <circle cx="286" cy="198" r="4" fill="#3a2a22" stroke="none"/><circle cx="314" cy="198" r="4" fill="#3a2a22" stroke="none"/>
+                <path d="M279 185 Q285 181 292 184 M308 184 Q315 181 321 185"/><path d="M290 213 Q300 223 310 213"/>
+              </g>
+              <g class="e e-inquiet" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
+                <circle cx="286" cy="199" r="4" fill="#3a2a22" stroke="none"/><circle cx="314" cy="199" r="4" fill="#3a2a22" stroke="none"/>
+                <path d="M279 188 L292 182 M308 182 L321 188"/><path d="M292 219 Q296 214 300 218 Q304 222 308 217"/>
+              </g>
+              <g class="e e-ferme" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
+                <path d="M281 203 Q286 206 291 203 M309 203 Q314 206 319 203"/>
+                <path d="M279 184 L292 189 M308 189 L321 184"/><path d="M294 220 L306 220"/>
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="parole">
+        <p class="didascalie" id="didascalie"></p>
+        <p class="bulle"><span class="qui">Léa</span><span id="bulle-texte"></span></p>
+      </div>
+    </section>
+
+    <section class="panneau">
+      <p class="phase-courante">Phase : <b id="nom-phase"></b></p>
+      <p class="question-posee" id="question-posee" hidden></p>
+      <h2 class="consigne">Votre intervention</h2>
+      <div id="zone-choix" class="zone-choix"></div>
+
+      <div id="jauges" class="jauges">
+        <div class="jauge"><span>Confiance</span><span class="piste"><i id="j-confiance" class="conf"></i></span><b id="v-confiance"></b></div>
+        <div class="jauge"><span>Stress</span><span class="piste"><i id="j-stress" class="stress"></i></span><b id="v-stress"></b></div>
+      </div>
+
+      <details class="transcript">
+        <summary>Transcription de l'audition</summary>
+        <div id="transcription"></div>
+      </details>
+      <button class="btn discret" id="btn-quitter">Quitter l'audition</button>
+    </section>
+  </div>
+</main>
+
+<!-- ───────── DÉBRIEF ───────── -->
+<main id="ecran-debrief" class="band debrief" hidden></main>
+
+<script src="scenarios/lea.js"></script>
+<script src="js/moteur.js"></script>
+</body>
+</html>
