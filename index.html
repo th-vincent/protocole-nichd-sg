@@ -3,196 +3,445 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simulation d'audition NICHD</title>
+<title>Salle Mélanie</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Caveat:wght@500;700&family=Lexend:wght@500;600&family=Special+Elite&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="barre-haut">
+<!-- ───────── BARRE DU MENU ───────── -->
+<header class="barre-haut" id="barre-haut">
   <div class="marque">
     <span class="logo" aria-hidden="true"></span>
     <div>
-      <p class="titre-app">Salle d'audition</p>
-      <p class="sous">Simulation du protocole NICHD</p>
+      <p class="titre-app">Salle Mélanie</p>
+      <p class="sous">Brigade de protection des familles · simulation d'audition</p>
     </div>
   </div>
-  <div class="rec" id="rec"><i></i>REC <span id="minuteur">00:00</span></div>
+  <nav class="nav-haut">
+    <button class="lien-nav" data-ouvre="dlg-protocole">Le protocole NICHD</button>
+    <button class="lien-nav" data-ouvre="dlg-aide">Comment jouer</button>
+  </nav>
 </header>
 
-<!-- ───────── ACCUEIL ───────── -->
-<main id="ecran-accueil" class="band accueil">
-  <div class="accueil-texte">
-    <h1>Entraînez-vous à l'audition d'un enfant</h1>
-    <p class="chapo" id="contexte"></p>
-    <label class="champ">Scénario
-      <select id="choix-scenario"></select>
-    </label>
-    <fieldset class="options">
-      <legend>Mode</legend>
-      <label><input type="checkbox" id="opt-feedback" checked> Retour pédagogique après chaque question</label>
-      <label><input type="checkbox" id="opt-jauges" checked> Afficher la confiance et le stress de l'enfant</label>
-    </fieldset>
-    <button class="btn principal" id="btn-commencer">Entrer dans la salle</button>
-    <p class="note">Prototype pédagogique, scénario fictif. Le contenu doit être validé par un formateur NICHD avant toute utilisation en formation.</p>
+<!-- ───────── ACCUEIL : LE COULOIR ───────── -->
+<main id="ecran-accueil" class="couloir">
+  <div class="couloir-scene" id="couloir-scene">
+    <div class="neon n1" aria-hidden="true"></div>
+    <div class="neon n2" aria-hidden="true"></div>
+    <div class="sol" aria-hidden="true"></div>
+
+    <div class="couloir-contenu">
+      <!-- tableau en liège -->
+      <section class="liege" aria-labelledby="titre-dossier">
+        <p class="scotch" id="titre-dossier">Dossiers du jour</p>
+        <div class="onglets" id="onglets" role="tablist" aria-label="Choix du dossier"></div>
+        <div class="postits" id="postits" aria-live="polite"></div>
+        <div class="fiche-reglages">
+          <p class="fiche-titre">Mode d'entraînement</p>
+          <label><input type="checkbox" id="opt-feedback" checked> Retour pédagogique après chaque intervention</label>
+          <label><input type="checkbox" id="opt-jauges" checked> Afficher la confiance et le stress de l'enfant</label>
+        </div>
+      </section>
+
+      <!-- la porte -->
+      <section class="porte-zone">
+        <div class="plaque"><b>SALLE MÉLANIE</b><span>Audition des mineurs</span></div>
+        <div class="porte-cadre">
+          <div class="porte-dedans" aria-hidden="true"><i class="lueur"></i></div>
+          <button class="porte" id="btn-commencer" aria-label="Ouvrir la porte et commencer l'audition">
+            <span class="panneau-haut"></span>
+            <span class="hublot"></span>
+            <span class="panneau-bas"></span>
+            <span class="poignee"></span>
+          </button>
+        </div>
+        <p class="voyant-salle"><i></i>Salle libre</p>
+        <button class="btn principal entrer" id="btn-entrer">Entrer dans la salle</button>
+        <svg class="extincteur" viewBox="0 0 40 100" aria-hidden="true"><rect x="8" y="22" width="24" height="74" rx="10" fill="#c8312b"/><rect x="12" y="10" width="14" height="14" rx="3" fill="#2b2b2b"/><path d="M26 14 h10 v6" stroke="#2b2b2b" stroke-width="4" fill="none"/><rect x="12" y="44" width="16" height="22" rx="2" fill="#f4efe6"/></svg>
+        <svg class="plante-couloir" viewBox="0 0 120 200" aria-hidden="true"><path d="M60 120 C20 80 18 40 40 10 C52 50 62 80 60 120Z" fill="#4c8a5e"/><path d="M62 120 C100 90 112 50 96 20 C80 60 66 86 62 120Z" fill="#3c7650"/><path d="M58 122 C26 112 6 92 6 70 C30 82 46 98 58 122Z" fill="#5b9e6d"/><path d="M32 120 h56 l-8 76 h-40z" fill="#8a8f99"/></svg>
+      </section>
+    </div>
   </div>
-  <ol class="etapes">
-    <li><b>Lisez la réplique</b> de l'enfant et observez son attitude.</li>
-    <li><b>Choisissez votre intervention</b> parmi les propositions (touches 1 à 4).</li>
-    <li><b>L'enfant réagit</b> selon le type de question : il s'ouvre, se ferme ou acquiesce.</li>
-    <li><b>Le débrief</b> mesure vos questions ouvertes, les faits recueillis et les éléments contaminés.</li>
-  </ol>
+  <div class="flash" id="flash" aria-hidden="true"></div>
 </main>
 
-<!-- ───────── JEU ───────── -->
-<main id="ecran-jeu" class="jeu" hidden>
-  <nav class="phases-nav" aria-label="Phases du protocole">
-    <ol id="phases"></ol>
-  </nav>
+<!-- ───────── JEU : LA SALLE ───────── -->
+<main id="ecran-jeu" class="salle" hidden>
+  <svg class="decor" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="g-mur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6dcc1"/><stop offset="1" stop-color="#ecc49f"/></linearGradient>
+      <linearGradient id="g-sol" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3946b"/><stop offset="1" stop-color="#a87a54"/></linearGradient>
+      <linearGradient id="g-vitre" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfe8f5"/><stop offset="1" stop-color="#a8d1e8"/></linearGradient>
+      <radialGradient id="g-jour" cx=".15" cy=".2" r=".9"><stop offset="0" stop-color="#fff8e6" stop-opacity=".55"/><stop offset="1" stop-color="#fff8e6" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="1600" height="640" fill="url(#g-mur)"/>
+    <!-- guirlande -->
+    <path d="M140 60 Q760 140 1460 60" stroke="#8a6a52" stroke-width="3" fill="none"/>
+    <g class="fanions">
+      <path d="M200 69 l36 4 -20 40z" fill="#e8664f"/><path d="M290 82 l36 3 -19 40z" fill="#f2b53a"/><path d="M380 92 l36 2 -18 40z" fill="#5fa8a0"/>
+      <path d="M470 99 l36 1 -18 40z" fill="#7d8fd6"/><path d="M560 104 l36 0 -18 40z" fill="#e8664f"/><path d="M650 106 l36 0 -18 40z" fill="#f2b53a"/>
+      <path d="M740 107 l36 0 -18 40z" fill="#5fa8a0"/><path d="M830 106 l36 0 -18 40z" fill="#7d8fd6"/><path d="M920 104 l36 -1 -18 40z" fill="#e8664f"/>
+      <path d="M1010 100 l36 -2 -18 40z" fill="#f2b53a"/><path d="M1100 94 l36 -3 -18 40z" fill="#5fa8a0"/><path d="M1190 86 l36 -4 -18 40z" fill="#7d8fd6"/><path d="M1280 76 l36 -5 -18 40z" fill="#e8664f"/>
+    </g>
+    <!-- fenêtre -->
+    <g transform="translate(80 180)">
+      <rect x="-12" y="-12" width="324" height="324" rx="8" fill="#fbf4ea"/>
+      <rect width="300" height="300" fill="url(#g-vitre)"/>
+      <path d="M0 210 Q80 170 150 200 T300 180 V300 H0Z" fill="#9cc79a" opacity=".7"/>
+      <g fill="#fbf4ea" opacity=".92">
+        <rect y="0" width="300" height="14"/><rect y="26" width="300" height="14"/><rect y="52" width="300" height="14"/><rect y="78" width="300" height="14"/><rect y="104" width="300" height="14"/>
+      </g>
+      <rect x="146" width="8" height="300" fill="#fbf4ea"/>
+      <rect x="-24" y="300" width="348" height="16" rx="4" fill="#fbf4ea"/>
+    </g>
+    <!-- dessins d'enfants -->
+    <g transform="translate(470 230) rotate(-3)"><rect width="120" height="92" fill="#fff"/><circle cx="34" cy="32" r="16" fill="#f2b53a"/><path d="M8 84 Q50 50 112 76 V88 H8Z" fill="#7cc4a4"/><path d="M70 50 h24 v22 h-24z" fill="#e8664f"/></g>
+    <g transform="translate(620 250) rotate(4)"><rect width="100" height="80" fill="#fff"/><path d="M20 60 q30 -50 60 0" stroke="#7d8fd6" stroke-width="8" fill="none"/><circle cx="50" cy="28" r="8" fill="#e8664f"/></g>
+    <!-- horloge -->
+    <g transform="translate(860 210)">
+      <circle r="46" fill="#fbf4ea" stroke="#8a6a52" stroke-width="7"/>
+      <g stroke="#8a6a52" stroke-width="3"><path d="M0 -36v6M0 36v-6M36 0h-6M-36 0h6"/></g>
+      <path d="M0 0 V-22" stroke="#3a2a22" stroke-width="4" stroke-linecap="round"/>
+      <path class="aiguille" d="M0 0 V-32" stroke="#3a2a22" stroke-width="3" stroke-linecap="round"/>
+      <circle r="4" fill="#e8664f"/>
+    </g>
+    <!-- étagère -->
+    <g transform="translate(1080 330)">
+      <rect width="230" height="310" rx="6" fill="#d9a67a"/>
+      <rect x="10" y="10" width="210" height="90" fill="#c58f62"/><rect x="10" y="110" width="210" height="90" fill="#c58f62"/><rect x="10" y="210" width="210" height="90" fill="#c58f62"/>
+      <rect x="20" y="30" width="18" height="70" fill="#e8664f"/><rect x="40" y="38" width="16" height="62" fill="#5fa8a0"/><rect x="58" y="26" width="20" height="74" fill="#f2b53a"/><rect x="80" y="44" width="14" height="56" fill="#7d8fd6"/>
+      <circle cx="170" cy="76" r="22" fill="#e8664f"/><path d="M150 76 h40" stroke="#fff" stroke-width="4"/>
+      <rect x="30" y="160" width="40" height="40" rx="4" fill="#5fa8a0"/><text x="42" y="188" font-size="22" font-weight="700" fill="#fff" font-family="Lexend,sans-serif">B</text>
+      <rect x="80" y="166" width="34" height="34" rx="4" fill="#f2b53a"/>
+      <path d="M140 200 q20 -60 50 0z" fill="#9b6dc6"/>
+      <rect x="24" y="236" width="70" height="64" rx="10" fill="#7d8fd6"/><rect x="110" y="250" width="90" height="50" rx="8" fill="#e8664f"/>
+    </g>
+    <!-- caméra -->
+    <g transform="translate(1390 64)">
+      <rect x="-5" y="-30" width="10" height="34" fill="#8a6a52"/>
+      <rect x="-40" y="0" width="74" height="40" rx="9" fill="#2b2f45"/>
+      <circle cx="-14" cy="20" r="13" fill="#11131f" stroke="#59607f" stroke-width="3"/>
+      <circle cx="-14" cy="20" r="5" fill="#2e3a6a"/>
+      <circle cx="20" cy="12" r="4" fill="#ff5a4e" opacity=".85"/>
+    </g>
+    <!-- lambris + sol -->
+    <rect y="560" width="1600" height="80" fill="#e3b48b"/>
+    <rect y="554" width="1600" height="10" fill="#fbf0e2"/>
+    <rect y="640" width="1600" height="260" fill="url(#g-sol)"/>
+    <g stroke="#8f6644" stroke-width="2" opacity=".5"><path d="M0 700 H1600 M0 770 H1600 M0 850 H1600"/><path d="M200 640 V700 M620 700 V770 M1040 640 V700 M1340 770 V850 M380 850 V900 M900 770 V850"/></g>
+    <!-- tapis -->
+    <ellipse cx="760" cy="808" rx="460" ry="78" fill="#6aa99a"/>
+    <ellipse cx="760" cy="808" rx="400" ry="60" fill="none" stroke="#fbf0e2" stroke-width="6" stroke-dasharray="18 14" opacity=".7"/>
+    <!-- table basse -->
+    <g transform="translate(150 700)">
+      <rect width="250" height="20" rx="8" fill="#e8b07c"/>
+      <rect x="18" y="20" width="14" height="70" fill="#c58f62"/><rect x="218" y="20" width="14" height="70" fill="#c58f62"/>
+      <rect x="40" y="-8" width="90" height="10" fill="#fff" transform="rotate(-4 85 -3)"/>
+      <rect x="150" y="-6" width="40" height="6" rx="3" fill="#e8664f"/><rect x="160" y="-14" width="40" height="6" rx="3" fill="#5fa8a0"/>
+    </g>
+    <!-- plante -->
+    <g transform="translate(1480 640)">
+      <path d="M0 0 C-40 -50 -26 -100 0 -120 C8 -84 14 -40 0 0Z" fill="#4f9d6e"/>
+      <path d="M6 0 C44 -40 56 -80 36 -104 C20 -70 8 -36 6 0Z" fill="#3f8a5d"/>
+      <path d="M-30 0 h64 l-8 90 h-48z" fill="#c96f4a"/>
+    </g>
+    <rect width="1600" height="900" fill="url(#g-jour)"/>
+  </svg>
+  <div class="vignette" aria-hidden="true"></div>
 
-  <div class="grille">
-    <section class="scene-col">
-      <div class="fig scene">
-        <svg viewBox="0 0 600 420" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Salle d'audition : l'enfant est assise sur un canapé">
-          <defs>
-            <linearGradient id="g-mur" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="var(--mur-haut)"/><stop offset="1" stop-color="var(--mur-bas)"/>
-            </linearGradient>
-            <linearGradient id="g-sol" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="var(--sol-haut)"/><stop offset="1" stop-color="var(--sol-bas)"/>
-            </linearGradient>
-            <radialGradient id="g-lumiere" cx=".25" cy=".1" r=".8">
-              <stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
-            </radialGradient>
-          </defs>
-          <rect width="600" height="330" fill="url(#g-mur)"/>
-          <rect y="330" width="600" height="90" fill="url(#g-sol)"/>
-          <rect y="326" width="600" height="6" fill="var(--plinthe)"/>
-          <rect width="600" height="420" fill="url(#g-lumiere)"/>
+  <!-- HUD haut -->
+  <header class="hud">
+    <ol class="phases" id="phases" aria-label="Phases du protocole"></ol>
+    <div class="hud-actions">
+      <button class="hud-btn" data-ouvre="dlg-protocole">Protocole</button>
+      <button class="hud-btn" id="btn-transcript" aria-expanded="false">Transcription</button>
+      <button class="hud-btn" id="btn-quitter">Quitter</button>
+    </div>
+  </header>
 
-          <!-- dessin d'enfant encadré -->
-          <g transform="translate(62 62)">
-            <rect width="104" height="80" rx="4" fill="#fff" stroke="var(--cadre)" stroke-width="6"/>
-            <circle cx="30" cy="30" r="12" fill="#ffc94a"/>
-            <path d="M30 12v-6M30 54v-6M12 30h-6M54 30h-6" stroke="#ffc94a" stroke-width="3" stroke-linecap="round"/>
-            <path d="M8 70 Q40 46 62 62 T100 56 V74 H8Z" fill="#7cc4a4"/>
-            <path d="M70 40h20v18h-20z" fill="#e8664f"/><path d="M66 40l14-12 14 12z" fill="#b8423a"/>
-          </g>
+  <div class="observation" id="observation" aria-live="polite">
+    <p class="obs-didascalie" id="didascalie"></p>
+    <p class="obs-etat" id="obs-etat"></p>
+  </div>
 
-          <!-- caméra -->
-          <g transform="translate(512 34)">
-            <rect x="-4" y="-6" width="8" height="18" fill="var(--cadre)"/>
-            <rect x="-26" y="10" width="48" height="28" rx="6" fill="#2b2f45"/>
-            <circle cx="-8" cy="24" r="9" fill="#11131f" stroke="#59607f" stroke-width="2"/>
-            <circle cx="12" cy="18" r="3.5" class="voyant"/>
-          </g>
+  <!-- scène : bulle + enfant -->
+  <section class="scene" aria-label="L'enfant">
+   <div class="scene-enfant">
+    <div class="bulle" id="bulle" title="Cliquer pour afficher toute la réponse">
+      <span class="qui" id="qui">Léa</span>
+      <p id="bulle-texte" aria-live="polite"></p>
+    </div>
+    <svg class="enfant-svg" id="enfant-svg" viewBox="0 0 600 470" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+      <ellipse cx="300" cy="452" rx="270" ry="16" fill="#000" opacity=".16"/>
+      <g class="canape">
+        <rect x="96" y="176" width="408" height="176" rx="42" fill="#2f7f86"/>
+        <rect x="118" y="194" width="176" height="124" rx="32" fill="#fff" opacity=".07"/>
+        <rect x="306" y="194" width="176" height="124" rx="32" fill="#fff" opacity=".07"/>
+        <rect x="80" y="318" width="440" height="78" rx="24" fill="#256970"/>
+        <rect x="52" y="246" width="78" height="156" rx="32" fill="#2f7f86"/>
+        <rect x="470" y="246" width="78" height="156" rx="32" fill="#2f7f86"/>
+        <rect x="96" y="396" width="14" height="44" rx="4" fill="#4a3a2a"/><rect x="490" y="396" width="14" height="44" rx="4" fill="#4a3a2a"/>
+        <g transform="translate(424 268) rotate(14)"><rect x="-38" y="-36" width="76" height="72" rx="20" fill="#f2a65a"/><circle r="11" fill="#fff" opacity=".35"/></g>
+      </g>
 
-          <!-- plante -->
-          <g transform="translate(530 262)">
-            <path d="M0 0 C-30 -40 -20 -70 0 -84 C6 -60 10 -30 0 0Z" fill="#4f9d6e"/>
-            <path d="M4 0 C30 -30 40 -56 26 -74 C14 -50 6 -26 4 0Z" fill="#3f8a5d"/>
-            <path d="M-2 0 C-36 -14 -46 -34 -40 -48 C-24 -36 -10 -20 -2 0Z" fill="#5fb07f"/>
-            <path d="M-20 0 h44 l-6 66 h-32z" fill="var(--pot)"/>
-            <path d="M-20 0 h44 v8 h-44z" fill="#000" opacity=".12"/>
-          </g>
-
-          <!-- coffre à jouets -->
-          <g transform="translate(26 292)">
-            <rect width="92" height="74" rx="8" fill="var(--coffre)"/>
-            <rect y="0" width="92" height="14" rx="6" fill="#000" opacity=".12"/>
-            <rect x="12" y="-18" width="22" height="22" rx="3" fill="#e8664f" transform="rotate(-8 23 -7)"/>
-            <circle cx="62" cy="-8" r="12" fill="#5a8bd8"/>
-            <text x="20" y="10" font-size="14" font-weight="700" fill="#fff" font-family="Lexend, sans-serif">A</text>
-          </g>
-
-          <!-- ombre au sol -->
-          <ellipse cx="300" cy="372" rx="200" ry="14" fill="#000" opacity=".12"/>
-
-          <!-- canapé -->
-          <rect x="150" y="196" width="300" height="118" rx="28" fill="var(--canape)"/>
-          <rect x="150" y="196" width="300" height="12" rx="6" fill="#fff" opacity=".12"/>
-          <rect x="138" y="290" width="324" height="56" rx="18" fill="var(--canape-fonce)"/>
-          <rect x="114" y="238" width="54" height="110" rx="24" fill="var(--canape)"/>
-          <rect x="432" y="238" width="54" height="110" rx="24" fill="var(--canape)"/>
-          <rect x="132" y="344" width="10" height="16" fill="#3b3226"/><rect x="458" y="344" width="10" height="16" fill="#3b3226"/>
-
-          <!-- enfant -->
-          <g id="enfant" data-expr="neutre">
-            <rect x="272" y="300" width="22" height="62" rx="9" fill="#3b4a7a"/>
-            <rect x="306" y="300" width="22" height="62" rx="9" fill="#3b4a7a"/>
-            <ellipse cx="282" cy="366" rx="15" ry="7" fill="#e8664f"/>
-            <ellipse cx="318" cy="366" rx="15" ry="7" fill="#e8664f"/>
-            <rect x="256" y="226" width="88" height="86" rx="32" fill="var(--pull)"/>
-            <path d="M262 262 h76" stroke="#fff" stroke-width="5" opacity=".5"/>
-            <g class="bras-le-long">
-              <rect x="240" y="236" width="22" height="58" rx="11" fill="var(--pull)"/>
-              <rect x="338" y="236" width="22" height="58" rx="11" fill="var(--pull)"/>
-              <circle cx="251" cy="296" r="9" fill="var(--peau)"/><circle cx="349" cy="296" r="9" fill="var(--peau)"/>
+      <g id="enfant" data-expr="neutre" data-agit="1" data-bras="long">
+        <g class="posture">
+          <g class="corps">
+            <g class="jambe jambe-g"><rect x="270" y="330" width="26" height="86" rx="12" fill="var(--pantalon)"/><ellipse cx="281" cy="420" rx="18" ry="9" fill="var(--chaussure)"/></g>
+            <g class="jambe jambe-d"><rect x="304" y="330" width="26" height="86" rx="12" fill="var(--pantalon)"/><ellipse cx="319" cy="420" rx="18" ry="9" fill="var(--chaussure)"/></g>
+            <rect x="260" y="300" width="80" height="40" rx="18" fill="var(--pantalon)"/>
+            <g class="torse">
+              <rect x="254" y="224" width="92" height="96" rx="34" fill="var(--pull)"/>
+              <path d="M260 262 h80" stroke="#fff" stroke-width="6" opacity=".4"/>
             </g>
-            <g class="bras-croises">
-              <rect x="262" y="262" width="76" height="22" rx="11" fill="var(--pull-fonce)"/>
-              <circle cx="266" cy="273" r="8" fill="var(--peau)"/><circle cx="334" cy="273" r="8" fill="var(--peau)"/>
+            <g class="bras bras-long">
+              <rect x="236" y="234" width="24" height="72" rx="12" fill="var(--pull)"/>
+              <rect x="340" y="234" width="24" height="72" rx="12" fill="var(--pull)"/>
+              <circle cx="248" cy="310" r="10" fill="var(--peau)"/><circle cx="352" cy="310" r="10" fill="var(--peau)"/>
             </g>
-            <rect x="292" y="214" width="16" height="16" fill="var(--peau-ombre)"/>
+            <g class="peluche">
+              <ellipse cx="300" cy="300" rx="28" ry="26" fill="#e9e2f2"/>
+              <ellipse cx="288" cy="244" rx="7" ry="20" fill="#e9e2f2"/><ellipse cx="312" cy="244" rx="7" ry="20" fill="#e9e2f2"/>
+              <ellipse cx="288" cy="246" rx="3" ry="13" fill="#f3b8c8"/><ellipse cx="312" cy="246" rx="3" ry="13" fill="#f3b8c8"/>
+              <circle cx="300" cy="270" r="20" fill="#f1ebf7"/>
+              <circle cx="293" cy="267" r="2.5" fill="#3a2a22"/><circle cx="307" cy="267" r="2.5" fill="#3a2a22"/>
+              <ellipse cx="300" cy="275" rx="3" ry="2" fill="#e88aa0"/>
+            </g>
+            <g class="bras bras-genoux">
+              <path d="M246 240 Q236 292 280 312" stroke="var(--pull)" stroke-width="24" stroke-linecap="round" fill="none"/>
+              <path d="M354 240 Q364 292 320 312" stroke="var(--pull)" stroke-width="24" stroke-linecap="round" fill="none"/>
+              <g class="mains"><circle cx="288" cy="312" r="10" fill="var(--peau)"/><circle cx="312" cy="312" r="10" fill="var(--peau)"/></g>
+            </g>
+            <g class="bras bras-croises">
+              <rect x="244" y="262" width="112" height="26" rx="13" fill="var(--pull-fonce)"/>
+              <rect x="250" y="236" width="22" height="40" rx="11" fill="var(--pull)"/><rect x="328" y="236" width="22" height="40" rx="11" fill="var(--pull)"/>
+              <circle cx="254" cy="275" r="10" fill="var(--peau)"/><circle cx="346" cy="275" r="10" fill="var(--peau)"/>
+            </g>
+            <rect x="291" y="208" width="18" height="20" fill="var(--peau-ombre)"/>
             <g class="tete">
-              <ellipse cx="300" cy="186" rx="47" ry="48" fill="var(--cheveux)"/>
-              <circle cx="251" cy="204" r="13" fill="var(--cheveux)"/><circle cx="349" cy="204" r="13" fill="var(--cheveux)"/>
-              <circle cx="254" cy="194" r="4" fill="#e8664f"/><circle cx="346" cy="194" r="4" fill="#e8664f"/>
-              <ellipse cx="300" cy="196" rx="36" ry="38" fill="var(--peau)"/>
-              <path d="M262 186 Q266 146 300 145 Q334 146 338 186 Q322 166 300 168 Q280 166 262 186Z" fill="var(--cheveux)"/>
-              <circle cx="279" cy="210" r="6" fill="#f08a80" opacity=".35"/><circle cx="321" cy="210" r="6" fill="#f08a80" opacity=".35"/>
+              <g class="coiffure-couettes">
+                <ellipse cx="300" cy="172" rx="47" ry="48" fill="var(--cheveux)"/>
+                <circle cx="251" cy="190" r="14" fill="var(--cheveux)"/><circle cx="349" cy="190" r="14" fill="var(--cheveux)"/>
+                <circle cx="255" cy="179" r="5" fill="#e8664f"/><circle cx="345" cy="179" r="5" fill="#e8664f"/>
+              </g>
+              <g class="coiffure-court">
+                <ellipse cx="300" cy="170" rx="42" ry="40" fill="var(--cheveux)"/>
+                <circle cx="263" cy="186" r="9" fill="var(--peau)"/><circle cx="337" cy="186" r="9" fill="var(--peau)"/>
+              </g>
+              <ellipse cx="300" cy="182" rx="36" ry="38" fill="var(--peau)"/>
+              <path class="coiffure-couettes" d="M262 172 Q266 132 300 131 Q334 132 338 172 Q322 152 300 154 Q280 152 262 172Z" fill="var(--cheveux)"/>
+              <path class="coiffure-court" d="M263 174 Q260 132 300 128 Q342 132 337 174 Q330 152 316 150 Q308 160 296 152 Q284 160 272 154 Q266 162 263 174Z" fill="var(--cheveux)"/>
+              <g class="joues"><circle cx="279" cy="198" r="7" fill="#f08a80"/><circle cx="321" cy="198" r="7" fill="#f08a80"/></g>
+              <g class="regard">
+                <g class="oeil"><circle cx="286" cy="184" r="4.5" fill="#3a2a22"/><circle cx="287.5" cy="182.5" r="1.3" fill="#fff"/></g>
+                <g class="oeil"><circle cx="314" cy="184" r="4.5" fill="#3a2a22"/><circle cx="315.5" cy="182.5" r="1.3" fill="#fff"/></g>
+              </g>
               <g class="e e-neutre" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
-                <circle cx="286" cy="198" r="4" fill="#3a2a22" stroke="none"/><circle cx="314" cy="198" r="4" fill="#3a2a22" stroke="none"/>
-                <path d="M279 186 L292 186 M308 186 L321 186"/><path d="M293 217 L307 217"/>
+                <path d="M279 172 L292 172 M308 172 L321 172"/><path class="bouche" d="M293 204 L307 204"/>
               </g>
               <g class="e e-detendu" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
-                <circle cx="286" cy="198" r="4" fill="#3a2a22" stroke="none"/><circle cx="314" cy="198" r="4" fill="#3a2a22" stroke="none"/>
-                <path d="M279 185 Q285 181 292 184 M308 184 Q315 181 321 185"/><path d="M290 213 Q300 223 310 213"/>
+                <path d="M279 171 Q285 166 292 169 M308 169 Q315 166 321 171"/><path class="bouche" d="M289 200 Q300 212 311 200"/>
               </g>
               <g class="e e-inquiet" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
-                <circle cx="286" cy="199" r="4" fill="#3a2a22" stroke="none"/><circle cx="314" cy="199" r="4" fill="#3a2a22" stroke="none"/>
-                <path d="M279 188 L292 182 M308 182 L321 188"/><path d="M292 219 Q296 214 300 218 Q304 222 308 217"/>
+                <path d="M279 174 L292 168 M308 168 L321 174"/><path class="bouche" d="M292 206 Q296 201 300 205 Q304 209 308 204"/>
+              </g>
+              <g class="e e-triste" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
+                <path d="M280 170 Q286 174 292 175 M308 175 Q314 174 320 170"/><path class="bouche" d="M291 208 Q300 200 309 208"/>
               </g>
               <g class="e e-ferme" stroke="#3a2a22" stroke-width="3" stroke-linecap="round" fill="none">
-                <path d="M281 203 Q286 206 291 203 M309 203 Q314 206 319 203"/>
-                <path d="M279 184 L292 189 M308 189 L321 184"/><path d="M294 220 L306 220"/>
+                <path d="M281 188 Q286 191 291 188 M309 188 Q314 191 319 188"/>
+                <path d="M279 170 L292 175 M308 175 L321 170"/><path class="bouche" d="M294 207 L306 207"/>
               </g>
+              <ellipse class="bouche-parle" cx="300" cy="204" rx="6" ry="5" fill="#7a2e2e"/>
+              <path class="larme" d="M284 194 q-4 9 0 13 q4 -4 0 -13z" fill="#8fd0f5"/>
             </g>
           </g>
-        </svg>
-      </div>
-      <div class="parole">
-        <p class="didascalie" id="didascalie"></p>
-        <p class="bulle"><span class="qui">Léa</span><span id="bulle-texte"></span></p>
-      </div>
-    </section>
+        </g>
+      </g>
+    </svg>
+   </div>
+  </section>
 
-    <section class="panneau">
+  <!-- console de l'enquêteur -->
+  <section class="console" aria-label="Vos interventions">
+    <div id="retour" class="retour" hidden></div>
+    <div class="console-tete">
+      <h2>Votre intervention</h2>
       <p class="phase-courante">Phase : <b id="nom-phase"></b></p>
-      <p class="question-posee" id="question-posee" hidden></p>
-      <h2 class="consigne">Votre intervention</h2>
-      <div id="zone-choix" class="zone-choix"></div>
-
+    </div>
+    <p class="attente" id="attente" hidden>L'enfant parle… <span>(cliquez sur la bulle ou appuyez sur Espace pour afficher toute sa réponse)</span></p>
+    <div id="zone-choix" class="zone-choix"></div>
+    <div class="console-pied">
+      <button class="btn-silence" id="btn-silence"><kbd>0</kbd> Ne rien dire, laisser un silence</button>
       <div id="jauges" class="jauges">
         <div class="jauge"><span>Confiance</span><span class="piste"><i id="j-confiance" class="conf"></i></span><b id="v-confiance"></b></div>
         <div class="jauge"><span>Stress</span><span class="piste"><i id="j-stress" class="stress"></i></span><b id="v-stress"></b></div>
       </div>
+    </div>
+  </section>
 
-      <details class="transcript">
-        <summary>Transcription de l'audition</summary>
-        <div id="transcription"></div>
-      </details>
-      <button class="btn discret" id="btn-quitter">Quitter l'audition</button>
-    </section>
-  </div>
+  <!-- transcription -->
+  <aside class="transcript" id="transcript" aria-label="Transcription">
+    <div class="transcript-tete">
+      <h2>Transcription</h2>
+      <button class="hud-btn fermer-transcript" id="btn-fermer-transcript" aria-label="Fermer la transcription">✕</button>
+    </div>
+    <div id="transcription" class="transcription"></div>
+  </aside>
 </main>
 
 <!-- ───────── DÉBRIEF ───────── -->
-<main id="ecran-debrief" class="band debrief" hidden></main>
+<main id="ecran-debrief" class="debrief-fond" hidden><div class="debrief" id="debrief"></div></main>
+
+<!-- ───────── DIALOGUE : PROTOCOLE ───────── -->
+<dialog id="dlg-protocole" class="dlg dossier-dlg" aria-labelledby="titre-protocole">
+  <div class="dlg-tete">
+    <p class="tampon">Fiche de formation</p>
+    <h2 id="titre-protocole">Le protocole NICHD, en résumé</h2>
+    <button class="dlg-fermer" data-ferme aria-label="Fermer">✕</button>
+  </div>
+  <article class="dlg-corps protocole">
+    <nav class="sommaire" aria-label="Sommaire">
+      <a href="#p-origine">Origine</a><a href="#p-principes">Principes</a><a href="#p-etapes">Étapes</a><a href="#p-questions">Types de questions</a><a href="#p-reticent">Enfant réticent</a><a href="#p-erreurs">Erreurs fréquentes</a><a href="#p-cadre">Cadre français</a>
+    </nav>
+
+    <h3 id="p-origine">1. D'où vient le protocole ?</h3>
+    <p>Le protocole NICHD a été développé à la fin des années 1990 par une équipe de chercheurs (Michael Lamb, Yael Orbach, Irit Hershkowitz, Kathleen Sternberg…) associée au <i>National Institute of Child Health and Human Development</i> américain. Il traduit en un guide d'entretien structuré plusieurs décennies de recherche sur la mémoire de l'enfant, la suggestibilité et la manière dont les questions de l'adulte façonnent le témoignage.</p>
+    <p>Son objectif est double : <b>obtenir le récit le plus complet possible</b> à partir de la mémoire libre de l'enfant, et <b>préserver la fiabilité</b> de ce récit en limitant au maximum les informations apportées par l'enquêteur. Les études de terrain montrent qu'avec le protocole, les enquêteurs posent beaucoup plus de questions ouvertes et obtiennent davantage de détails, et des détails plus exacts.</p>
+    <p>Une version <b>révisée</b> (années 2010) renforce la mise en confiance et ajoute des propos de soutien non suggestifs, pour mieux accompagner les enfants réticents.</p>
+
+    <h3 id="p-principes">2. Les principes qui guident tout l'entretien</h3>
+    <ul>
+      <li><b>La mémoire de rappel avant tout.</b> Ce que l'enfant dit en réponse à une invitation ouverte (« Raconte-moi… ») est en moyenne bien plus exact que ce qu'il dit en réponse à une question précise. On épuise donc toujours le récit libre avant de poser des questions ciblées.</li>
+      <li><b>L'enquêteur n'apporte aucune information.</b> Lieu, personne, geste, émotion : tout ce que l'enfant n'a pas encore dit ne doit pas apparaître dans les questions. Une information introduite par l'adulte peut être reprise par l'enfant et intégrée à son souvenir : c'est la <b>contamination</b>.</li>
+      <li><b>On reprend les mots de l'enfant.</b> « Tu as dit qu'il serrait fort. Raconte-moi tout sur ça. » On ne reformule pas avec des mots d'adulte (« agression », « violence », « frapper ») que l'enfant n'a pas employés.</li>
+      <li><b>On n'interrompt pas.</b> On laisse l'enfant aller au bout de son idée et on tolère de courts silences : ils laissent le temps de se souvenir.</li>
+      <li><b>Pas de « pourquoi ».</b> Les questions en « pourquoi » obligent l'enfant à expliquer l'intention d'un adulte, et sont souvent entendues comme un reproche.</li>
+      <li><b>On ne répète pas une question qui a déjà reçu une réponse.</b> L'enfant peut en conclure que sa première réponse était « fausse » et la modifier.</li>
+      <li><b>On soutient l'effort, jamais le contenu.</b> « Tu m'aides beaucoup », « Tu fais beaucoup d'efforts » sont encouragés. « Ce que tu me dis est très important sur lui » ou « Il n'avait pas le droit de faire ça » sont à proscrire.</li>
+      <li><b>Pas de promesse, ni de menace.</b> L'enquêteur ne promet ni ce qui va arriver (« tu ne le reverras plus »), ni une récompense, et ne met jamais la pression (« tu dois répondre »).</li>
+      <li><b>On s'adapte au développement.</b> Avant 7-8 ans, les notions de date, d'heure, de durée ou de nombre sont fragiles. On s'appuie sur les repères de l'enfant (« le soir du match », « après l'école ») plutôt que sur le calendrier.</li>
+    </ul>
+
+    <h3 id="p-etapes">3. Les étapes de l'audition</h3>
+    <h4>Avant l'audition : la préparation</h4>
+    <p>L'enquêteur prend connaissance du dossier (âge, signalement, contexte familial) mais reste prudent : connaître l'allégation ne doit pas devenir une hypothèse à confirmer. Le risque est de chercher à vérifier ce qu'on croit savoir et de « souffler » les réponses. On note les informations utiles pour le rapport (prénom, activités, personnes significatives) et les termes employés par l'enfant lors de sa première révélation.</p>
+
+    <h4>1. Introduction</h4>
+    <p>L'enquêteur se présente (prénom, fonction), explique son rôle (« mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées ») et l'enregistrement (« la caméra filme pour que je n'aie pas besoin de tout écrire »). <b>Aucune allusion aux faits.</b></p>
+
+    <h4>2. Règles de base</h4>
+    <p>On explique puis on teste les règles avec un exemple concret :</p>
+    <ul>
+      <li><b>« Je ne sais pas »</b> : « Si je te demande comment s'appelle mon chien, tu dis quoi ? »</li>
+      <li><b>« Je ne comprends pas »</b> : l'enfant peut demander qu'on reformule.</li>
+      <li><b>« Tu peux me corriger »</b> : « Si je dis que tu as deux ans, tu dis quoi ? »</li>
+      <li><b>Dire ce qui s'est vraiment passé</b> : plutôt qu'une définition abstraite de la vérité et du mensonge, on fait un test concret (« Si je dis que mes chaussures sont rouges, c'est vrai ou pas vrai ? »), puis on demande une promesse simple (« Tu promets de me dire seulement ce qui s'est vraiment passé ? »). Cette promesse améliore l'exactitude des récits.</li>
+    </ul>
+
+    <h4>3. Établissement du rapport</h4>
+    <p>On fait connaissance avec l'enfant par des <b>invitations ouvertes</b> sur ce qu'il aime (« Raconte-moi ce que tu aimes faire »). Ce moment n'est pas une formalité : il habitue l'enfant à parler longuement pendant que l'adulte écoute. Des questions fermées (« Tu aimes l'école ? ») installent au contraire un ping-pong de réponses courtes. On évite les sujets liés aux faits (le lieu, les personnes impliquées, le jour des faits).</p>
+
+    <h4>4. Entraînement à la mémoire épisodique</h4>
+    <p>On demande le récit d'un événement récent et neutre (un anniversaire, la matinée du jour) « du début à la fin », puis on relance avec « Et ensuite ? », « Raconte-moi plus sur [détail donné par l'enfant] », « Raconte-moi tout ce qui s'est passé depuis [X] jusqu'à [Y] ». L'enfant s'entraîne au récit détaillé et l'enquêteur s'entraîne aux invitations. On termine en valorisant la manière : « Tu m'as raconté plein de détails, c'est comme ça que j'ai besoin que tu me racontes les choses. »</p>
+
+    <h4>5. Transition vers les faits</h4>
+    <p>Les incitations vont de la plus ouverte à la plus ciblée, et on ne passe à la suivante que si la précédente échoue :</p>
+    <ol>
+      <li>« Maintenant que je te connais mieux, je voudrais parler de la raison pour laquelle tu es venu(e). <b>Dis-moi pourquoi tu es là.</b> »</li>
+      <li>« J'ai entendu dire que tu as parlé à [personne] / vu [professionnel]. <b>Dis-moi ce dont vous avez parlé.</b> » (on évoque la source, pas le contenu)</li>
+      <li>« J'ai entendu dire que quelque chose t'est peut-être arrivé à [lieu / moment]. Raconte-moi tout. » (avec de grandes précautions)</li>
+      <li>En tout dernier recours seulement : des formulations plus directes, toujours suivies d'une invitation ouverte.</li>
+    </ol>
+    <p>Si l'enfant reste silencieux ou réticent, le protocole révisé recommande de revenir au soutien et au rapport plutôt que de « forcer ».</p>
+
+    <h4>6. Investigation : le récit libre</h4>
+    <p>Dès que l'enfant évoque les faits, on l'invite à tout raconter : « Raconte-moi tout ce qui s'est passé, depuis le début jusqu'à la fin. » Puis on travaille avec trois outils :</p>
+    <ul>
+      <li><b>L'invitation de suite</b> : « Et ensuite ? », « Et puis ? »</li>
+      <li><b>L'invitation indicée</b> (on reprend un mot de l'enfant) : « Tu as dit qu'Inès a vu. Raconte-moi tout sur ça. »</li>
+      <li><b>La segmentation temporelle</b> : « Raconte-moi tout ce qui s'est passé depuis le moment où [action A] jusqu'au moment où [action B]. »</li>
+    </ul>
+    <p><b>Plusieurs faits ?</b> On demande « Est-ce que c'est arrivé une fois ou plus d'une fois ? ». Si c'est arrivé plusieurs fois, on explore séparément « la dernière fois », « la première fois », « la fois dont tu te souviens le mieux », en reprenant pour chacune les mots de l'enfant.</p>
+
+    <h4>7. Questions directives et fermées, puis pause</h4>
+    <p>Une fois le récit libre épuisé, on peut préciser ce qui manque par des <b>questions directives</b> (qui, quoi, où, quand, comment) qui portent sur un élément <b>déjà mentionné</b> par l'enfant : « Tu as parlé d'une marque. Où était-elle ? ». Chaque question directive est suivie d'une invitation ouverte : c'est l'<b>appariement</b> (« … Raconte-moi tout sur ça »). Les questions fermées (oui/non, choix) n'arrivent qu'en dernier recours, et jamais pour introduire un élément nouveau.</p>
+    <p>Une <b>pause</b> permet à l'enquêteur de relire ses notes ou de consulter ses collègues derrière la caméra, puis de revenir sur les points restés flous.</p>
+
+    <h4>8. Informations sur la révélation</h4>
+    <p>« Qui a été la première personne à savoir ce qui s'est passé ? », « Comment est-ce que [cette personne] l'a su ? ». Ces questions éclairent le contexte de la révélation et les éventuelles discussions préalables avec des adultes, qui ont pu influencer le récit.</p>
+
+    <h4>9. Clôture</h4>
+    <p>« Y a-t-il autre chose que tu penses que je devrais savoir ? », « Est-ce que tu as des questions ? ». On remercie l'enfant pour ses efforts (pas pour le contenu), on répond honnêtement à ses questions sans rien promettre, et on termine par un sujet neutre (« Qu'est-ce que tu vas faire cet après-midi ? ») pour qu'il quitte la salle apaisé.</p>
+
+    <h3 id="p-questions">4. La hiérarchie des questions</h3>
+    <div class="tableau-defile">
+    <table>
+      <thead><tr><th>Type</th><th>Exemple</th><th>À utiliser</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pastille t-ouv">Invitation</span></td><td>« Raconte-moi tout ce qui s'est passé. » « Et ensuite ? »</td><td>Le plus souvent possible. Base de l'entretien.</td></tr>
+        <tr><td><span class="pastille t-ind">Invitation indicée</span></td><td>« Tu as parlé de [X]. Raconte-moi tout sur [X]. »</td><td>Pour approfondir un détail donné par l'enfant.</td></tr>
+        <tr><td><span class="pastille t-sou">Soutien</span></td><td>« Tu m'aides beaucoup. Prends ton temps. »</td><td>Quand l'enfant est tendu ou réticent. Jamais sur le contenu.</td></tr>
+        <tr><td><span class="pastille t-dir">Directive</span></td><td>« Où était la marque ? » « Qui est Inès ? »</td><td>Après le récit libre, sur un élément déjà évoqué, puis appariement.</td></tr>
+        <tr><td><span class="pastille t-cho">Fermée / à choix</span></td><td>« Une fois ou plus d'une fois ? » « Il était en colère ou il riait ? »</td><td>En dernier recours. Le choix imposé pousse à choisir une option.</td></tr>
+        <tr><td><span class="pastille t-sug">Suggestive</span></td><td>« Il t'a frappée, c'est ça ? » « Ça a dû te faire peur. »</td><td>Jamais. Contient ou présuppose la réponse.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 id="p-reticent">5. Face à un enfant stressé ou réticent</h3>
+    <p>Un enfant peut se fermer pour de nombreuses raisons : peur des conséquences, loyauté envers un proche mis en cause, honte, consignes de silence, fatigue. Signes à repérer : réponses de plus en plus courtes, regard fuyant, agitation, repli sur soi, demande de partir.</p>
+    <ul>
+      <li><b>Ralentir.</b> Ce n'est pas le moment de multiplier les questions précises : sous stress, l'enfant acquiesce plus facilement aux suggestions et répond pour que ça s'arrête.</li>
+      <li><b>Soutenir sans suggérer</b> : reconnaître l'effort et la difficulté (« Je vois que c'est difficile, tu fais beaucoup d'efforts »), rappeler qu'on a le temps.</li>
+      <li><b>Revenir au rapport</b> quelques instants (un sujet que l'enfant aime), puis reprendre la transition.</li>
+      <li><b>Accepter une audition incomplète</b> plutôt qu'un récit obtenu sous la pression. Une nouvelle audition reste possible.</li>
+      <li>Avec un enfant confronté à un <b>conflit de loyauté</b> (parent mis en cause), éviter tout jugement sur la personne et ne jamais rendre l'enfant responsable de la suite (« grâce à toi on va pouvoir… »).</li>
+    </ul>
+
+    <h3 id="p-erreurs">6. Erreurs fréquentes</h3>
+    <ul>
+      <li>Reprendre les termes du signalement (« le monsieur », « ton bras ») avant que l'enfant ne les emploie.</li>
+      <li>Reprendre un mot que l'enfant a lui-même repris de l'enquêteur : on renforce la contamination au lieu de la corriger.</li>
+      <li>Poser deux questions à la fois, ou une question à choix dont aucune option ne convient.</li>
+      <li>Attribuer une émotion (« tu as dû avoir peur ») au lieu de la demander (« comment tu t'es senti(e) ? »).</li>
+      <li>Mettre en doute une réponse (« tu es sûr(e) ? ») : l'enfant passe de la certitude au « je crois ».</li>
+      <li>Demander des dates, des heures ou des nombres à un jeune enfant.</li>
+      <li>Rassurer par des promesses ou remercier pour le contenu.</li>
+      <li>Laisser des silences trop longs ou répétés face à un enfant qui ne sait plus quoi dire : le silence soutient le récit, il ne doit pas devenir une pression.</li>
+    </ul>
+
+    <h3 id="p-cadre">7. Le cadre français</h3>
+    <p>En France, les auditions de mineurs victimes se déroulent dans des <b>salles d'audition adaptées</b>, appelées <b>« salles Mélanie »</b> en gendarmerie : un espace chaleureux, équipé d'un dispositif d'enregistrement audiovisuel, avec du matériel adapté à l'âge de l'enfant. L'enregistrement audiovisuel de l'audition des mineurs victimes est prévu par le code de procédure pénale (article 706-52). L'objectif est d'éviter à l'enfant de répéter son récit à de multiples interlocuteurs. Des unités d'accueil pédiatriques enfants en danger (UAPED) permettent aussi de réaliser l'audition en milieu hospitalier.</p>
+    <p>Le protocole NICHD fait partie des méthodes enseignées aux enquêteurs spécialisés dans l'audition des mineurs.</p>
+
+    <p class="avertissement">Résumé pédagogique simplifié, rédigé pour ce prototype. Il ne remplace ni la formation des enquêteurs ni les textes officiels. À faire valider par un formateur NICHD.</p>
+  </article>
+</dialog>
+
+<!-- ───────── DIALOGUE : AIDE ───────── -->
+<dialog id="dlg-aide" class="dlg" aria-labelledby="titre-aide">
+  <div class="dlg-tete">
+    <h2 id="titre-aide">Comment jouer</h2>
+    <button class="dlg-fermer" data-ferme aria-label="Fermer">✕</button>
+  </div>
+  <div class="dlg-corps">
+    <ol class="etapes-aide">
+      <li><b>Lisez le dossier</b> sur le tableau : ce sont les seules informations dont vous disposez. Attention, les reprendre trop tôt devant l'enfant, c'est le contaminer.</li>
+      <li><b>Entrez dans la salle Mélanie</b> et observez l'enfant : son attitude, ses gestes, ce qu'il dit.</li>
+      <li><b>Choisissez votre intervention</b> (touches 1 à 6), ou <b>laissez un silence</b> (touche 0). Les bonnes et les mauvaises formulations se ressemblent : lisez-les bien.</li>
+      <li><b>Surveillez le stress et la confiance.</b> Un enfant stressé répond moins bien, et les questions précises le stressent davantage. Parfois, il vaut mieux ralentir.</li>
+      <li><b>Le débrief</b> reprend chaque intervention, phrase par phrase, avec les formulations recommandées par le protocole.</li>
+    </ol>
+    <p class="avertissement">Scénarios fictifs, à visée pédagogique. Le contenu doit être validé par un formateur NICHD avant toute utilisation en formation.</p>
+  </div>
+</dialog>
 
 <script src="scenarios/lea.js"></script>
+<script src="scenarios/noah.js"></script>
 <script src="js/moteur.js"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 /*
- * Moteur de simulation d'entretien NICHD.
+ * Moteur de simulation d'audition NICHD.
  * Il ne contient AUCUN contenu de scénario : tout vient de window.SCENARIOS (dossier scenarios/).
+ * Le format des scénarios est documenté en tête de scenarios/lea.js.
  */
 {
   const PHASES = [
@@ -13,213 +14,482 @@
     { cle: "cloture", nom: "Clôture" }
   ];
 
-  // Types de questions. `ouverte` compte pour le ratio de questions ouvertes ; `question` = compte dans les stats.
+  // Types d'intervention.
+  //   ouverte  : compte comme question ouverte dans les statistiques
+  //   question : compte comme question (les consignes, soutiens et silences ne comptent pas)
+  //   qualite  : note par défaut (-2 à 2), modifiable dans le scénario
+  //   conseil  : rappel du protocole affiché dans le débrief
   const TYPES = {
-    invitation:         { nom: "Invitation ouverte", court: "Ouverte",    classe: "t-ouv",  ouverte: true,  question: true },
-    invitation_indicee: { nom: "Invitation indicée", court: "Indicée",    classe: "t-ind",  ouverte: true,  question: true },
-    directive:          { nom: "Question directive", court: "Directive",  classe: "t-dir",  ouverte: false, question: true },
-    choix:              { nom: "Question à choix / fermée", court: "Fermée", classe: "t-cho", ouverte: false, question: true },
-    suggestive:         { nom: "Question suggestive", court: "Suggestive", classe: "t-sug", ouverte: false, question: true },
-    consigne:           { nom: "Consigne / cadre", court: "Cadre",       classe: "t-con",  ouverte: false, question: false },
-    inadaptee:          { nom: "Propos inadapté", court: "Inadapté",     classe: "t-ina",  ouverte: false, question: false }
+    invitation:         { nom: "Invitation ouverte", court: "Ouverte", classe: "t-ouv", ouverte: true, question: true, qualite: 2,
+      conseil: "L'invitation ouverte reste l'outil principal : « Raconte-moi tout… », « Et ensuite ? ». Elle mobilise la mémoire libre, la plus fiable." },
+    invitation_indicee: { nom: "Invitation indicée", court: "Indicée", classe: "t-ind", ouverte: true, question: true, qualite: 2,
+      conseil: "Reprenez uniquement des mots déjà prononcés par l'enfant : « Tu as parlé de [X]. Raconte-moi tout sur [X]. »" },
+    soutien:            { nom: "Soutien non suggestif", court: "Soutien", classe: "t-sou", ouverte: false, question: false, qualite: 1,
+      conseil: "Soutenez l'effort et reconnaissez la difficulté (« Tu m'aides beaucoup », « Prends ton temps »), sans évoquer les faits, sans promesse et sans remercier pour le contenu." },
+    directive:          { nom: "Question directive", court: "Directive", classe: "t-dir", ouverte: false, question: true, qualite: 1,
+      conseil: "Question directive seulement après le récit libre, sur un élément déjà évoqué par l'enfant, puis retour à une invitation : « … Raconte-moi tout sur ça » (appariement)." },
+    choix:              { nom: "Question fermée / à choix", court: "Fermée", classe: "t-cho", ouverte: false, question: true, qualite: 0,
+      conseil: "Question fermée en dernier recours : l'enfant choisit une option même si aucune ne convient. Transformez-la en invitation (« Parle-moi de… »)." },
+    suggestive:         { nom: "Question suggestive", court: "Suggestive", classe: "t-sug", ouverte: false, question: true, qualite: -2,
+      conseil: "N'introduisez jamais un élément que l'enfant n'a pas donné (personne, lieu, geste, émotion). Repartez de ses mots, ou d'une invitation générale." },
+    consigne:           { nom: "Consigne / cadre", court: "Cadre", classe: "t-con", ouverte: false, question: false, qualite: 1,
+      conseil: "Le cadre doit être simple, concret et sans pression : présentation, règles testées par un exemple, clôture apaisée." },
+    silence:            { nom: "Silence", court: "Silence", classe: "t-sil", ouverte: false, question: false, qualite: 1,
+      conseil: "Une pause de quelques secondes après une réponse laisse l'enfant compléter. Si le silence devient pesant, relancez par une invitation." },
+    inadaptee:          { nom: "Propos inadapté", court: "Inadapté", classe: "t-ina", ouverte: false, question: false, qualite: -1,
+      conseil: "Pas de promesse, de menace, de mise en doute, de jugement sur une personne, ni de remerciement pour le contenu." }
+  };
+  const QUALITES = { "2": "Conforme", "1": "Acceptable", "0": "Discutable", "-1": "À éviter", "-2": "Contaminant" };
+
+  const SOUTIENS_DEFAUT = [
+    "Prends ton temps. Tu fais beaucoup d'efforts, et ça m'aide vraiment.",
+    "Je vois que c'est difficile. On a tout le temps, je suis là pour t'écouter.",
+    "Tu peux souffler un peu. Tu m'aides beaucoup en me parlant."
+  ];
+
+  const OBSERVATIONS = {
+    panique: ["{P} se recroqueville sur le canapé et ne vous regarde plus.", "{P} tremble un peu et serre les bras contre {lui}.", "{P} a les yeux qui brillent : {il} semble au bord des larmes."],
+    agite:   ["{P} agite les jambes et se triture les doigts.", "{P} jette des coups d'œil vers la porte.", "{P} se tortille sur le canapé, mal à l'aise."],
+    reserve: ["{P} reste sur la réserve, au bord du canapé.", "{P} parle du bout des lèvres, sans trop vous regarder.", "{P} vous observe, encore méfiant{e}."],
+    neutre:  ["{P} vous écoute, assis{e} sagement.", "{P} vous regarde, attentif{ve}.", "{P} attend la suite, plutôt calme."],
+    detendu: ["{P} est détendu{e} et balance les jambes.", "{P} vous regarde quand {il} parle, plus à l'aise.", "{P} sourit facilement maintenant."]
   };
 
   const $ = (s) => document.querySelector(s);
   const borne = (v) => Math.max(0, Math.min(10, v));
-  const echap = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const echap = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const melanger = (l) => l.map((x) => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  let sc = null;       // scénario courant
-  let etat = null;     // { confiance, stress, contamination }
-  let noeudId = null;
-  let journal = [];    // [{ noeud, phase, question, type, feedback, enfant }]
-  let faits = new Set();
-  let phasesVues = new Set();
-  let debut = 0, minuteur = null;
+  let sc = null, cle = null;
+  let etat, noeudId, journal, faits, marques, utilises, soutiens, phasesVues;
+  let silencesSuite = 0, stressMax = 0, dernierTexte = null, retour = null, frappe = null;
   const options = { feedback: true, jauges: true };
+
+  /* ---------- textes accordés (« {P} est détendu{e} ») ---------- */
+  function tpl(s) {
+    if (s == null) return s;
+    const f = sc.genre === "f";
+    return String(s)
+      .replace(/\{P\}/g, sc.prenom)
+      .replace(/\{il\}/g, f ? "elle" : "il").replace(/\{Il\}/g, f ? "Elle" : "Il")
+      .replace(/\{lui\}/g, f ? "elle" : "lui").replace(/\{le\}/g, f ? "la" : "le")
+      .replace(/\{ve\}/g, f ? "ve" : "f").replace(/\{e\}/g, f ? "e" : "");
+  }
 
   /* ---------- conditions ---------- */
   function verifie(si) {
     if (!si) return true;
     const e = etat;
-    return (si.confiance_min == null || e.confiance >= si.confiance_min)
-      && (si.confiance_max == null || e.confiance <= si.confiance_max)
-      && (si.stress_min == null || e.stress >= si.stress_min)
-      && (si.stress_max == null || e.stress <= si.stress_max)
-      && (si.contamination_min == null || e.contamination >= si.contamination_min);
+    const dans = (v, min, max) => (min == null || v >= min) && (max == null || v <= max);
+    return dans(e.confiance, si.confiance_min, si.confiance_max)
+      && dans(e.stress, si.stress_min, si.stress_max)
+      && dans(e.contamination, si.contamination_min, si.contamination_max)
+      && (si.faits || []).every((f) => faits.has(f))
+      && (si.sans_faits || []).every((f) => !faits.has(f))
+      && (si.marques || []).every((m) => marques.has(m))
+      && (si.sans_marques || []).every((m) => !marques.has(m));
   }
 
-  function resoudreReplique(n) {
-    let r = { texte: n.enfant, expression: n.expression, didascalie: n.didascalie };
-    if (Array.isArray(n.enfant)) {
-      const v = n.enfant.find((x) => verifie(x.si)) || n.enfant[n.enfant.length - 1];
-      r = { texte: v.texte, expression: v.expression || n.expression, didascalie: v.didascalie || n.didascalie };
+  // Une réplique : "texte", { texte, expression, didascalie }, ou liste de variantes [{ si, texte, … }]
+  function variante(v) {
+    if (v == null) return null;
+    if (typeof v === "string") return { texte: v };
+    if (Array.isArray(v)) {
+      const x = v.find((y) => verifie(y.si)) || v[v.length - 1];
+      return typeof x === "string" ? { texte: x } : x;
     }
-    if (!r.expression) r.expression = expressionDepuisEtat();
-    return r;
+    return v;
   }
 
-  function expressionDepuisEtat() {
-    if (etat.stress >= 8) return "ferme";
-    if (etat.stress >= 6) return "inquiet";
-    if (etat.confiance >= 6) return "detendu";
-    return "neutre";
+  function replique(n) {
+    const v = variante(n.enfant) || { texte: "…" };
+    return { texte: v.texte, expression: v.expression || n.expression, didascalie: v.didascalie || n.didascalie };
   }
 
   function resoudreSuivant(s) {
+    if (s == null) return noeudId;
     if (typeof s === "string") return s;
     const v = s.find((x) => verifie(x.si)) || s[s.length - 1];
     return v.vers;
   }
 
+  const agitation = () => (etat.stress >= 8 ? 3 : etat.stress >= 6 ? 2 : etat.stress >= 4 ? 1 : 0);
+
+  function expressionDepuisEtat() {
+    if (etat.stress >= 8) return "ferme";
+    if (etat.stress >= 6) return "inquiet";
+    if (etat.confiance >= 6 && etat.stress <= 4) return "detendu";
+    if (etat.confiance <= 2) return "triste";
+    return "neutre";
+  }
+
+  /* ---------- résolution d'un choix selon l'état de l'enfant ---------- */
+  function resoudreChoix(c) {
+    let r = { ...c };
+    let specifique = false;
+    if (c.selon) {
+      const v = c.selon.find((x) => verifie(x.si));
+      if (v) { r = { ...r, ...v }; specifique = true; }
+    }
+    delete r.selon;
+    r.effets = { ...(r.effets || {}) };
+    r.qualite = r.qualite ?? TYPES[r.type].qualite;
+    r.feedback = tpl(r.feedback || "");
+    if (!specifique && !r.generique) ajusterSelonEtat(r);
+    return r;
+  }
+
+  // Règles génériques : le stress et la confiance modifient l'effet et la pertinence d'une intervention.
+  function ajusterSelonEtat(r) {
+    const s = etat.stress;
+    if (s >= 7 && (r.type === "directive" || r.type === "choix")) {
+      r.effets.stress = (r.effets.stress || 0) + 1;
+      r.qualite = Math.max(-2, r.qualite - 1);
+      r.feedback += tpl(" {P} était très tendu{e} : enchaîner des questions précises augmente la pression. Il fallait d'abord ralentir (soutien, pause, sujet neutre).");
+      r.mieux = r.mieux || "Je vois que c'est difficile. Prends ton temps, tu m'aides beaucoup.";
+    } else if (s >= 7 && r.type === "suggestive") {
+      r.effets.stress = (r.effets.stress || 0) + 1;
+      r.feedback += " Sous stress, un enfant acquiesce encore plus facilement à ce qu'on lui suggère.";
+    }
+    if (r.type === "soutien" && s <= 3) {
+      r.qualite = Math.min(r.qualite, 0);
+      r.feedback += tpl(" {P} était déjà détendu{e} : trop de réassurance peut laisser entendre que le sujet est grave.");
+    }
+    if (etat.confiance <= 2 && (r.type === "invitation" || r.type === "invitation_indicee")) {
+      r.feedback += tpl(" La confiance de {P} est encore faible : sa réponse risque d'être courte.");
+    }
+  }
+
+  function soutienGenerique() {
+    const l = sc.soutiens || SOUTIENS_DEFAUT;
+    return {
+      question: l[journal.length % l.length], type: "soutien", generique: true, qualite: 2,
+      effets: { stress: -2, confiance: 1 },
+      feedback: "Propos de soutien non suggestif (protocole révisé) : vous reconnaissez l'effort et la difficulté sans évoquer les faits ni rien promettre. L'enfant souffle un peu, et pourra peut-être en dire davantage.",
+      didascalieApres: "{P} prend une grande inspiration. Ses épaules se relâchent un peu."
+    };
+  }
+
+  function choixSilence(n) {
+    let base;
+    if (silencesSuite >= 1) {
+      base = { qualite: 0, effets: { stress: 1, confiance: -1 },
+        reponse: { texte: "…", didascalie: "{P} regarde ses mains. Le silence s'installe et devient pesant." },
+        feedback: "Deuxième silence d'affilée : l'enfant ne sait plus ce que vous attendez. Après une pause, relancez par une invitation (« Et ensuite ? », « Raconte-moi plus sur… »)." };
+    } else if (etat.stress >= 7) {
+      base = { qualite: 0, effets: { stress: 1 },
+        reponse: { texte: "…", expression: "inquiet", didascalie: "{P} se tortille : le silence {le} met encore plus mal à l'aise." },
+        feedback: "Face à un enfant très tendu, le silence ajoute de la pression. Un mot de soutien non suggestif aurait été plus adapté." };
+    } else if (n.silence) {
+      base = n.silence;
+    } else if (["introduction", "regles", "cloture"].includes(n.phase)) {
+      base = { qualite: 0, effets: { stress: 1 },
+        reponse: { texte: "…", didascalie: "{P} vous regarde, en attendant que vous repreniez la parole." },
+        feedback: "Dans cette phase, c'est à l'adulte de structurer l'échange : le silence laisse l'enfant dans l'incertitude." };
+    } else {
+      base = { qualite: 1, effets: {},
+        reponse: { texte: "…", didascalie: "{P} réfléchit un instant, puis attend votre question." },
+        feedback: "Une courte pause laisse le temps de réfléchir. Ici, l'enfant n'a rien ajouté : relancez par une invitation." };
+    }
+    return { ...base, type: "silence", question: null };
+  }
+
   /* ---------- déroulé ---------- */
-  function demarrer(cle) {
-    sc = window.SCENARIOS[cle];
-    etat = { ...sc.etatInitial };
-    journal = []; faits = new Set(); phasesVues = new Set();
+  function demarrer(c) {
+    arreterFrappe();
+    cle = c; sc = window.SCENARIOS[c];
+    etat = { confiance: 3, stress: 4, contamination: 0, ...sc.etatInitial };
+    journal = []; faits = new Set(); marques = new Set(); utilises = new Set(); soutiens = new Set(); phasesVues = new Set();
+    silencesSuite = 0; stressMax = etat.stress; dernierTexte = null; retour = null; noeudId = null;
+    document.body.classList.add("en-salle");
+    $("#barre-haut").hidden = true;
     $("#ecran-accueil").hidden = true;
     $("#ecran-debrief").hidden = true;
     $("#ecran-jeu").hidden = false;
-    document.querySelector(".qui").textContent = sc.prenom || "Enfant";
-    debut = Date.now();
-    clearInterval(minuteur);
-    minuteur = setInterval(majMinuteur, 1000); majMinuteur();
+    $("#transcript").classList.remove("ouvert");
+    appliquerApparence();
+    $("#qui").textContent = sc.prenom;
+    majJauges();
     allerA(sc.depart);
   }
 
-  function allerA(id) {
-    noeudId = id;
+  function appliquerApparence() {
+    const a = { peau: "#f2c6a0", peauOmbre: "#dfae88", cheveux: "#5a3825", pull: "#e8b13a", pullFonce: "#d69e28",
+      pantalon: "#3b4a7a", chaussure: "#e8664f", coiffure: "couettes", accessoire: "", ...(sc.apparence || {}) };
+    const svg = $("#enfant-svg");
+    svg.dataset.coiffure = a.coiffure;
+    svg.dataset.accessoire = a.accessoire;
+    for (const [k, v] of Object.entries({ peau: a.peau, "peau-ombre": a.peauOmbre, cheveux: a.cheveux, pull: a.pull, "pull-fonce": a.pullFonce, pantalon: a.pantalon, chaussure: a.chaussure }))
+      svg.style.setProperty("--" + k, v);
+  }
+
+  function ajouterFait(f) {
+    if (!faits.has(f) && sc.faits[f] && !sc.faits[f].fiable) etat.contamination += 1;
+    faits.add(f);
+  }
+
+  function allerA(id, override, depuis) {
     const n = sc.noeuds[id];
     if (!n) { console.error("Nœud introuvable :", id); return; }
+    const meme = id === noeudId && !!depuis;
+    noeudId = id;
     phasesVues.add(n.phase);
-    (n.faitsAuto || []).forEach((f) => faits.add(f));
-    if (n.faitsAutoSi && verifie(n.faitsAutoSi.si)) n.faitsAutoSi.faits.forEach((f) => faits.add(f));
 
-    const r = resoudreReplique(n);
-    if (journal.length) journal[journal.length - 1].enfant = r.texte;
-    else journal.push({ noeud: id, phase: n.phase, question: null, enfant: r.texte });
+    let r;
+    if (override) {
+      r = { texte: override.texte, expression: override.expression, didascalie: override.didascalie };
+    } else {
+      // l'enfant ne livre les faits du nœud que s'il prononce vraiment la réplique du nœud
+      (n.faitsAuto || []).forEach(ajouterFait);
+      if (n.faitsAutoSi && verifie(n.faitsAutoSi.si)) n.faitsAutoSi.faits.forEach(ajouterFait);
+      r = replique(n);
+      if (meme && tpl(r.texte) === dernierTexte) r = { texte: "…" };
+    }
+    if (!r.didascalie && depuis && depuis.didascalieApres) r.didascalie = depuis.didascalieApres;
+    r.texte = tpl(r.texte ?? "…");
+    r.didascalie = tpl(r.didascalie || "");
+    if (!r.expression) r.expression = expressionDepuisEtat();
+    dernierTexte = r.texte;
+
+    const dernier = journal[journal.length - 1];
+    if (dernier && dernier.type && dernier.enfant == null) { dernier.enfant = r.texte; dernier.didascalie = r.didascalie; }
+    else journal.push({ noeud: id, phase: n.phase, question: null, enfant: r.texte, didascalie: r.didascalie });
 
     afficherScene(n, r);
-    if (n.fin) {
-      afficherChoix([]);
-      $("#zone-choix").innerHTML = `<button class="btn principal" id="btn-debrief">Terminer l'audition et voir le débrief</button>`;
-      $("#btn-debrief").onclick = afficherDebrief;
-    } else {
-      afficherChoix(melanger(n.choix.filter((c) => verifie(c.si))));
-    }
   }
 
-  function choisir(c) {
+  function choisir(c0, cleChoix) {
+    if (frappe) return;
     const n = sc.noeuds[noeudId];
-    for (const k of ["confiance", "stress"]) etat[k] = borne(etat[k] + ((c.effets || {})[k] || 0));
-    (c.faits || []).forEach((f) => {
-      faits.add(f);
-      if (sc.faits[f] && !sc.faits[f].fiable) etat.contamination += 1;
-    });
-    journal.push({ noeud: noeudId, phase: n.phase, question: c.question, type: c.type, feedback: c.feedback, enfant: null });
-    majJauges();
-    $("#question-posee").textContent = c.question;
-    $("#question-posee").hidden = false;
+    const c = resoudreChoix(c0);
+    const avant = { confiance: etat.confiance, stress: etat.stress };
+    for (const k of ["confiance", "stress"]) etat[k] = borne(etat[k] + (c.effets[k] || 0));
+    [].concat(c.faits || []).forEach(ajouterFait);
+    [].concat(c.marque || []).forEach((m) => marques.add(m));
+    if (cleChoix != null) utilises.add(noeudId + "#" + cleChoix);
+    if (c.type === "soutien") soutiens.add(noeudId);
+    silencesSuite = c.type === "silence" ? silencesSuite + 1 : 0;
+    stressMax = Math.max(stressMax, etat.stress);
+    const delta = { confiance: etat.confiance - avant.confiance, stress: etat.stress - avant.stress };
 
-    const suivant = resoudreSuivant(c.suivant);
-    if (options.feedback && c.feedback) {
-      const t = TYPES[c.type];
-      $("#zone-choix").innerHTML = `
-        <div class="retour ${t.classe}">
-          <p class="badge">${t.nom}</p>
-          <p>${echap(c.feedback)}</p>
-          <button class="btn principal" id="btn-suite">Continuer</button>
-        </div>`;
-      $("#btn-suite").onclick = () => allerA(suivant);
-      $("#btn-suite").focus();
-    } else {
-      allerA(suivant);
-    }
+    retour = {
+      noeud: noeudId, phase: n.phase, question: c.question ? tpl(c.question) : null, type: c.type,
+      qualite: c.qualite, feedback: c.feedback, mieux: c.mieux ? tpl(c.mieux) : null, enfant: null, didascalie: null, delta
+    };
+    journal.push(retour);
+    majJauges(delta);
+    reagir(delta);
+    allerA(resoudreSuivant(c.suivant), variante(c.reponse), c);
   }
 
-  /* ---------- affichage ---------- */
+  /* ---------- affichage de la scène ---------- */
   function afficherScene(n, r) {
-    $("#bulle-texte").textContent = r.texte;
-    $("#didascalie").textContent = r.didascalie || "";
-    $("#enfant").dataset.expr = r.expression;
-    const dernier = journal.filter((j) => j.question).slice(-1)[0];
-    $("#question-posee").textContent = dernier ? dernier.question : "";
-    $("#question-posee").hidden = !dernier;
     const i = PHASES.findIndex((p) => p.cle === n.phase);
     $("#phases").innerHTML = PHASES.map((p, k) =>
-      `<li class="${k < i ? "faite" : k === i ? "active" : ""}">${p.nom}</li>`).join("");
+      `<li class="${k < i ? "faite" : k === i ? "active" : ""}"${k === i ? ' aria-current="step"' : ""}>${p.nom}</li>`).join("");
     $("#nom-phase").textContent = PHASES[i] ? PHASES[i].nom : "";
-    majJauges();
-    majTranscription();
+    observer(r);
+    poserEnfant(r.expression);
+
+    const con = $(".console");
+    con.classList.add("occupee");
+    $("#retour").hidden = true;
+    $("#zone-choix").innerHTML = "";
+    $("#btn-silence").hidden = !!n.fin;
+    $("#attente").hidden = false;
+    taper(r.texte, () => {
+      con.classList.remove("occupee");
+      $("#attente").hidden = true;
+      majTranscription();
+      afficherConsole(n);
+    });
   }
 
-  function afficherChoix(liste) {
-    $("#zone-choix").innerHTML = liste.map((c, k) =>
-      `<button class="choix" data-k="${k}"><span class="num">${k + 1}</span><span>${echap(c.question)}</span></button>`).join("");
-    $("#zone-choix").querySelectorAll(".choix").forEach((b) => (b.onclick = () => choisir(liste[+b.dataset.k])));
+  function observer(r) {
+    const niv = agitation();
+    const cat = niv >= 3 ? "panique" : niv === 2 ? "agite" : etat.confiance <= 3 ? "reserve"
+      : etat.confiance >= 6 && niv === 0 ? "detendu" : "neutre";
+    const l = (sc.observations && sc.observations[cat]) || OBSERVATIONS[cat];
+    $("#didascalie").textContent = r.didascalie || "";
+    $("#didascalie").hidden = !r.didascalie;
+    const e = $("#obs-etat");
+    e.textContent = tpl(l[journal.length % l.length]);
+    e.dataset.niveau = cat === "panique" ? 3 : cat === "agite" ? 2 : cat === "detendu" ? 0 : 1;
+    const o = $("#observation");
+    o.classList.remove("maj"); void o.offsetWidth; o.classList.add("maj");
   }
 
-  function majJauges() {
+  function poserEnfant(expr) {
+    const e = $("#enfant");
+    const niv = agitation();
+    e.dataset.expr = expr;
+    e.dataset.agit = niv;
+    e.dataset.bras = niv >= 3 || expr === "ferme" ? "croises"
+      : niv === 2 || (sc.apparence && sc.apparence.accessoire) ? "genoux" : "long";
+    $("#ecran-jeu").style.setProperty("--tension", Math.max(0, Math.min(1, (etat.stress - 3) / 6)).toFixed(2));
+  }
+
+  function reagir(d) {
+    const cls = d.stress >= 2 ? "sursaut" : d.stress <= -2 ? "soupir" : d.confiance >= 1 ? "hoche" : null;
+    if (!cls) return;
+    const e = $("#enfant");
+    e.classList.remove("sursaut", "soupir", "hoche");
+    void e.getBoundingClientRect();
+    e.classList.add(cls);
+    setTimeout(() => e.classList.remove(cls), 1200);
+  }
+
+  /* ---------- texte tapé au fur et à mesure ---------- */
+  function taper(texte, fin) {
+    arreterFrappe();
+    const el = $("#bulle-texte"), enfant = $("#enfant"), bulle = $("#bulle");
+    el.textContent = "";
+    if (reduit) { el.textContent = texte; fin(); return; }
+    bulle.classList.add("tape");
+    let i = 0;
+    const terminer = () => {
+      clearTimeout(frappe.t);
+      el.textContent = texte;
+      enfant.classList.remove("parle");
+      bulle.classList.remove("tape");
+      frappe = null;
+      fin();
+    };
+    const etape = () => {
+      i++;
+      el.textContent = texte.slice(0, i);
+      if (i >= texte.length) return terminer();
+      const ch = texte[i - 1];
+      const pause = ch === "…" ? 450 : /[.!?]/.test(ch) ? 320 : /[,;:]/.test(ch) ? 160 : 22 + Math.random() * 28;
+      enfant.classList.toggle("parle", pause < 100);
+      frappe.t = setTimeout(etape, pause);
+    };
+    frappe = { terminer };
+    frappe.t = setTimeout(etape, 420);
+  }
+
+  function arreterFrappe() {
+    if (!frappe) return;
+    clearTimeout(frappe.t);
+    frappe = null;
+    $("#enfant").classList.remove("parle");
+    $("#bulle").classList.remove("tape");
+  }
+
+  /* ---------- console de l'enquêteur ---------- */
+  function afficherConsole(n) {
+    const ret = $("#retour");
+    if (options.feedback && retour && retour.feedback) {
+      const t = TYPES[retour.type];
+      ret.className = "retour " + t.classe;
+      ret.innerHTML = `
+        <div class="retour-tete"><span class="badge">${t.nom}</span><span class="qualite q-${retour.qualite}">${QUALITES[retour.qualite]}</span></div>
+        <p>${echap(retour.feedback)}</p>
+        ${retour.mieux && retour.qualite < 2 ? `<p class="mieux"><b>Plutôt :</b> « ${echap(retour.mieux)} »</p>` : ""}`;
+      ret.hidden = false;
+    }
+
+    const zone = $("#zone-choix");
+    if (n.fin) {
+      zone.innerHTML = `<button class="btn principal" id="btn-debrief">Terminer l'audition et lire le débrief</button>`;
+      $("#btn-debrief").onclick = afficherDebrief;
+      $(".console").scrollTop = 0;
+      return;
+    }
+    const restePlace = (c) => c.suivant == null || c.suivant === noeudId;
+    let liste = n.choix.map((c, i) => ({ c, i }))
+      .filter(({ c, i }) => verifie(c.si) && !(restePlace(c) && utilises.has(noeudId + "#" + i)));
+    if (!liste.length) liste = n.choix.map((c, i) => ({ c, i })).filter(({ c }) => verifie(c.si));
+    liste = melanger(liste);
+    if (etat.stress >= 7 && !soutiens.has(noeudId) && !liste.some(({ c }) => c.type === "soutien"))
+      liste.splice(Math.floor(Math.random() * (liste.length + 1)), 0, { c: soutienGenerique(), i: "soutien" });
+
+    zone.innerHTML = liste.map(({ c }, k) =>
+      `<button class="choix" data-k="${k}"><span class="num">${k + 1}</span><span>${echap(tpl(resoudreChoix(c).question))}</span></button>`).join("");
+    zone.querySelectorAll(".choix").forEach((b) => {
+      const { c, i } = liste[+b.dataset.k];
+      b.onclick = () => choisir(c, i);
+    });
+    $("#btn-silence").onclick = () => choisir(choixSilence(n), null);
+    $(".console").scrollTop = 0;
+  }
+
+  function majJauges(delta) {
     $("#jauges").hidden = !options.jauges;
     $("#j-confiance").style.width = etat.confiance * 10 + "%";
     $("#j-stress").style.width = etat.stress * 10 + "%";
     $("#v-confiance").textContent = etat.confiance;
     $("#v-stress").textContent = etat.stress;
-  }
-
-  function majMinuteur() {
-    const s = Math.floor((Date.now() - debut) / 1000);
-    $("#minuteur").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+    if (!delta) return;
+    [["confiance", "#v-confiance", 1], ["stress", "#v-stress", -1]].forEach(([k, sel, sens]) => {
+      if (!delta[k]) return;
+      const s = document.createElement("span");
+      s.className = "delta " + (delta[k] * sens > 0 ? "plus" : "moins");
+      s.textContent = (delta[k] > 0 ? "+" : "") + delta[k];
+      $(sel).parentElement.appendChild(s);
+      setTimeout(() => s.remove(), 1700);
+    });
   }
 
   function majTranscription() {
-    $("#transcription").innerHTML = journal.map((j) =>
-      (j.question ? `<p><b>Enquêteur :</b> ${echap(j.question)}</p>` : "") +
-      (j.enfant != null ? `<p><b>Enfant :</b> ${echap(j.enfant)}</p>` : "")).join("");
+    const t = $("#transcription");
+    t.innerHTML = journal.map((j) =>
+      (j.type === "silence" ? `<p class="sil">(silence de l'enquêteur)</p>` : j.question ? `<p class="enq"><b>Enquêteur :</b> ${echap(j.question)}</p>` : "") +
+      (j.didascalie ? `<p class="did">${echap(j.didascalie)}</p>` : "") +
+      (j.enfant != null ? `<p class="enf"><b>${echap(sc.prenom)} :</b> ${echap(j.enfant)}</p>` : "")).join("");
+    t.scrollTop = t.scrollHeight;
   }
 
   /* ---------- débrief ---------- */
   function afficherDebrief() {
-    clearInterval(minuteur);
-    const coups = journal.filter((j) => j.question);
+    arreterFrappe();
+    const coups = journal.filter((j) => j.type);
     const questions = coups.filter((j) => TYPES[j.type].question);
     const ouvertes = questions.filter((j) => TYPES[j.type].ouverte).length;
     const sugg = coups.filter((j) => j.type === "suggestive").length;
-    const inad = coups.filter((j) => j.type === "inadaptee").length;
+    const nbSoutiens = coups.filter((j) => j.type === "soutien").length;
+    const nbSilences = coups.filter((j) => j.type === "silence").length;
     const fiablesTotal = Object.entries(sc.faits).filter(([, f]) => f.fiable);
     const fiablesOk = fiablesTotal.filter(([k]) => faits.has(k));
     const contamines = Object.entries(sc.faits).filter(([k, f]) => !f.fiable && faits.has(k));
     const ratioOuv = questions.length ? ouvertes / questions.length : 0;
-    const ratioFaits = fiablesOk.length / fiablesTotal.length;
+    const ratioFaits = fiablesTotal.length ? fiablesOk.length / fiablesTotal.length : 0;
     const ratioPhases = phasesVues.size / PHASES.length;
-    const score = Math.max(0, Math.round(35 * ratioOuv + 30 * ratioFaits + 15 * ratioPhases
-      + 20 * (1 - Math.min(sugg, 3) / 3) - 5 * inad));
+    const qMoy = coups.length ? coups.reduce((s, j) => s + (j.qualite + 2) / 4, 0) / coups.length : 0;
+    const score = Math.max(0, Math.min(100, Math.round(
+      30 * qMoy + 30 * ratioFaits + 15 * ratioPhases + 25 * (1 - Math.min(contamines.length, 3) / 3) - (etat.stress >= 8 ? 5 : 0))));
 
-    const parType = Object.entries(TYPES).map(([k, t]) => ({ k, t, n: coups.filter((j) => j.type === k).length }));
+    const parType = Object.entries(TYPES).map(([k, t]) => ({ t, n: coups.filter((j) => j.type === k).length }));
     const max = Math.max(1, ...parType.map((p) => p.n));
+    const nomPhase = (k) => (PHASES.find((p) => p.cle === k) || {}).nom || "";
+    const recos = recommandations({ ratioOuv, ratioFaits, sugg, contamines, nbSoutiens, nbSilences, coups });
 
     $("#ecran-jeu").hidden = true;
+    $("#barre-haut").hidden = false;
+    document.body.classList.remove("en-salle");
     $("#ecran-debrief").hidden = false;
-    $("#ecran-debrief").innerHTML = `
+    $("#debrief").innerHTML = `
       <div class="debrief-tete">
         <div>
-          <p class="sur">Débrief — ${echap(sc.titre)}</p>
-          <h2>${verdict(score, sugg)}</h2>
+          <p class="sur">RAPPORT D'AUDITION · ${echap(sc.titre).toUpperCase()}</p>
+          <h2>${verdict(score, contamines.length)}</h2>
         </div>
         <div class="score"><span>${score}</span><small>/ 100 (indicatif)</small></div>
       </div>
       <div class="chiffres">
         <div><b>${Math.round(ratioOuv * 100)} %</b><span>de questions ouvertes (${ouvertes}/${questions.length})</span></div>
         <div><b>${fiablesOk.length}/${fiablesTotal.length}</b><span>faits fiables recueillis</span></div>
-        <div><b>${sugg}</b><span>question${sugg > 1 ? "s" : ""} suggestive${sugg > 1 ? "s" : ""}</span></div>
-        <div><b>${phasesVues.size}/${PHASES.length}</b><span>phases du protocole parcourues</span></div>
+        <div><b>${contamines.length}</b><span>élément${contamines.length > 1 ? "s" : ""} contaminé${contamines.length > 1 ? "s" : ""}</span></div>
+        <div><b>${phasesVues.size}/${PHASES.length}</b><span>phases du protocole</span></div>
+        <div><b>${stressMax}/10</b><span>stress maximal de l'enfant</span></div>
       </div>
       <div class="deux">
         <section>
-          <h3>Répartition de vos interventions</h3>
+          <h3>Vos interventions</h3>
           ${parType.filter((p) => p.n).map((p) => `
-            <div class="barre"><span class="lab">${p.t.nom}</span>
-              <span class="piste"><i class="${p.t.classe}" style="width:${(p.n / max) * 100}%"></i></span>
+            <div class="barre ${p.t.classe}"><span class="lab">${p.t.nom}</span>
+              <span class="piste"><i style="width:${(p.n / max) * 100}%"></i></span>
               <span class="n">${p.n}</span></div>`).join("")}
           <h3>Phases</h3>
           <ul class="phases-bilan">${PHASES.map((p) => `<li class="${phasesVues.has(p.cle) ? "ok" : "ko"}">${p.nom}</li>`).join("")}</ul>
@@ -232,38 +502,133 @@
         </section>
       </div>
       <section>
-        <h3>Votre audition, question par question</h3>
-        <ol class="journal">${coups.map((j) => `
-          <li><span class="badge ${TYPES[j.type].classe}">${TYPES[j.type].court}</span>
-            <p class="q">« ${echap(j.question)} »</p>
-            ${j.enfant != null ? `<p class="r">${echap(sc.prenom || "Enfant")} : ${echap(j.enfant)}</p>` : ""}
-            <p class="fb">${echap(j.feedback || "")}</p></li>`).join("")}</ol>
+        <h3>Recommandations du protocole</h3>
+        <ul class="recos">${recos.map(([t, d]) => `<li><b>${echap(t)}</b>${echap(d)}</li>`).join("")}</ul>
       </section>
-      <div class="actions"><button class="btn principal" id="btn-rejouer">Recommencer l'audition</button></div>`;
-    $("#btn-rejouer").onclick = () => demarrer(cleCourante);
+      <section>
+        <h3>Votre audition, phrase par phrase</h3>
+        <ol class="journal">${coups.map((j, k) => {
+          const t = TYPES[j.type];
+          const d = j.delta || {};
+          return `
+          <li class="${t.classe}">
+            <div class="j-tete"><span class="j-num">#${k + 1}</span><span class="badge">${t.nom}</span>
+              <span class="qualite q-${j.qualite}">${QUALITES[j.qualite]}</span><span class="j-phase">${nomPhase(j.phase)}</span></div>
+            <p class="q">${j.question ? "« " + echap(j.question) + " »" : "(Vous laissez un silence.)"}</p>
+            ${j.enfant != null ? `<p class="r">${echap(sc.prenom)} : ${echap(j.enfant)}${j.didascalie ? " (" + echap(j.didascalie) + ")" : ""}</p>` : ""}
+            ${d.confiance || d.stress ? `<div class="deltas">${d.confiance ? `<span>Confiance ${d.confiance > 0 ? "+" : ""}${d.confiance}</span>` : ""}${d.stress ? `<span>Stress ${d.stress > 0 ? "+" : ""}${d.stress}</span>` : ""}</div>` : ""}
+            <p class="fb">${echap(j.feedback)}</p>
+            ${j.qualite < 2 ? `<p class="piste-nichd"><b>Ce que recommande le protocole</b>${j.mieux ? "Formulation possible : « " + echap(j.mieux) + " ». " : ""}${echap(t.conseil)}</p>` : ""}
+          </li>`;
+        }).join("")}</ol>
+      </section>
+      <div class="actions">
+        <button class="btn principal" id="btn-rejouer">Recommencer cette audition</button>
+        <button class="btn secondaire" id="btn-couloir">Retour au couloir</button>
+      </div>`;
+    $("#btn-rejouer").onclick = () => demarrer(cle);
+    $("#btn-couloir").onclick = retourCouloir;
     window.scrollTo({ top: 0 });
   }
 
-  function verdict(score, sugg) {
-    if (sugg >= 2) return "Le témoignage est fragilisé par des questions suggestives";
-    if (score >= 80) return "Audition conforme au protocole";
-    if (score >= 55) return "Bonne base, quelques écarts au protocole";
+  function recommandations({ ratioOuv, ratioFaits, sugg, contamines, nbSoutiens, nbSilences, coups }) {
+    const r = [];
+    if (!phasesVues.has("regles")) r.push(["Poser les règles de base", "Expliquez et testez avec un exemple concret « je ne sais pas », « je ne comprends pas », « tu peux me corriger », puis demandez une promesse simple de dire ce qui s'est vraiment passé."]);
+    if (!phasesVues.has("rapport") || !phasesVues.has("memoire")) r.push(["Prendre le temps du rapport et de l'entraînement", "Le rapport (« Raconte-moi ce que tu aimes faire ») et le récit d'un événement neutre « du début à la fin » habituent l'enfant à parler longuement. Les sauter, c'est obtenir ensuite des réponses courtes."]);
+    if (ratioOuv < 0.6) r.push(["Plus d'invitations ouvertes", "Visez une large majorité d'invitations. Épuisez le récit libre (« Raconte-moi tout », « Et ensuite ? », « Tu as parlé de [X], raconte-moi tout sur [X] ») avant toute question directive."]);
+    if (contamines.length || sugg) r.push(["N'apporter aucune information", "Chaque élément introduit par vous (personne, lieu, geste, émotion, jugement) peut être repris par l'enfant et intégré à son souvenir. Pour la transition, commencez par « Dis-moi pourquoi tu es venu(e) me parler », puis n'évoquez qu'une source (« tu as parlé à… ») sans le contenu."]);
+    if (stressMax >= 7 && nbSoutiens === 0) r.push(["Ralentir quand l'enfant se crispe", "Le stress est monté haut sans propos de soutien. Le protocole révisé recommande de reconnaître l'effort et la difficulté (« Tu m'aides beaucoup, prends ton temps »), voire de revenir brièvement au rapport, plutôt que d'enchaîner les questions."]);
+    if (coups.some((j) => j.type === "inadaptee")) r.push(["Ni promesse, ni pression, ni doute", "Évitez « tu dois répondre », « tu es sûr(e) ? », « tu ne le reverras plus ». Ces propos poussent l'enfant à deviner, à changer sa réponse, ou créent des attentes que vous ne maîtrisez pas."]);
+    if (nbSilences === 0) r.push(["Oser le silence", "Une pause de quelques secondes après une réponse, en restant attentif, invite souvent l'enfant à compléter spontanément son récit."]);
+    else if (coups.filter((j) => j.type === "silence" && j.qualite <= 0).length >= 2) r.push(["Doser le silence", "Plusieurs silences sont tombés à plat : en introduction, face à un enfant stressé ou répétés, ils deviennent une pression. Le silence soutient le récit libre ; ailleurs, relancez."]);
+    if (ratioFaits < 0.6) r.push(["Explorer chaque élément mentionné", "Des faits importants n'ont pas été recueillis. Utilisez les invitations indicées sur les détails donnés par l'enfant, la segmentation temporelle (« depuis [X] jusqu'à [Y] »), et demandez si c'est arrivé une fois ou plus d'une fois."]);
+    if (!coups.some((j) => j.phase === "recit" && j.type === "directive" && j.qualite >= 2)) r.push(["Penser à la révélation", "« Qui a été la première personne à savoir ce qui s'est passé ? » éclaire le contexte de la révélation et les échanges que l'enfant a déjà eus avec des adultes."]);
+    if (!phasesVues.has("cloture")) r.push(["Clôturer l'audition", "Demandez s'il y a autre chose à ajouter, laissez l'enfant poser ses questions, remerciez-le pour ses efforts et terminez par un sujet neutre."]);
+    if (!r.length) r.push(["Audition très proche du protocole", "Pour aller plus loin : variez les invitations indicées, appariez chaque question directive avec une invitation, et rejouez le scénario en mode sans retour pour vous évaluer à froid."]);
+    return r;
+  }
+
+  function verdict(score, nbContamines) {
+    if (nbContamines >= 2) return "Le témoignage est fragilisé par des éléments que vous avez introduits";
+    if (score >= 82) return "Audition conforme au protocole";
+    if (score >= 62) return "Bonne base, quelques écarts au protocole";
     return "Audition à retravailler";
   }
 
-  /* ---------- initialisation ---------- */
+  /* ---------- accueil : couloir, post-it, porte ---------- */
   let cleCourante = Object.keys(window.SCENARIOS)[0];
-  const sel = $("#choix-scenario");
-  sel.innerHTML = Object.entries(window.SCENARIOS).map(([k, s]) => `<option value="${k}">${echap(s.titre)}</option>`).join("");
-  const majContexte = () => { cleCourante = sel.value; $("#contexte").textContent = window.SCENARIOS[cleCourante].contexte; };
-  sel.onchange = majContexte; majContexte();
+  const COULEURS = ["#fff27a", "#ffb3c7", "#a8e6ff", "#c4f5a8", "#ffd59a"];
+  const ROTATIONS = [-3, 2.5, -1.5, 3.5, -2.5, 1.5];
+
+  function rendreAccueil() {
+    $("#onglets").innerHTML = Object.entries(window.SCENARIOS).map(([k, s]) =>
+      `<button class="onglet" role="tab" aria-selected="${k === cleCourante}" data-cle="${k}">Dossier ${echap(s.prenom)}<small>${echap(s.age || "")}</small></button>`).join("");
+    $("#onglets").querySelectorAll(".onglet").forEach((b) => (b.onclick = () => { cleCourante = b.dataset.cle; rendreAccueil(); }));
+    const s = window.SCENARIOS[cleCourante];
+    const d = s.dossier || {};
+    $("#postits").innerHTML =
+      `<div class="postit fiche" style="--r:-1deg"><b>${echap(s.titre)}</b>${echap(s.contexte)}</div>` +
+      (d.postits || []).map((p, i) =>
+        `<div class="postit" style="--c:${COULEURS[i % COULEURS.length]};--r:${ROTATIONS[i % ROTATIONS.length]}deg;animation-delay:${0.08 * (i + 1)}s">${echap(p)}</div>`).join("");
+  }
+
+  function entrer() {
+    const acc = $("#ecran-accueil");
+    if (reduit) return demarrer(cleCourante);
+    if (acc.classList.contains("ouverture")) return;
+    const p = $(".porte-cadre").getBoundingClientRect(), sc0 = $("#couloir-scene").getBoundingClientRect();
+    $("#couloir-scene").style.transformOrigin = `${p.left + p.width / 2 - sc0.left}px ${p.top + p.height * 0.55 - sc0.top}px`;
+    acc.classList.add("ouverture");
+    setTimeout(() => acc.classList.add("zoom"), 900);
+    setTimeout(() => {
+      demarrer(cleCourante);
+      acc.classList.remove("ouverture", "zoom");
+      $("#couloir-scene").style.transformOrigin = "";
+    }, 1950);
+  }
+
+  function retourCouloir() {
+    arreterFrappe();
+    document.body.classList.remove("en-salle");
+    $("#ecran-jeu").hidden = true;
+    $("#ecran-debrief").hidden = true;
+    $("#barre-haut").hidden = false;
+    $("#ecran-accueil").hidden = false;
+    rendreAccueil();
+    window.scrollTo({ top: 0 });
+  }
+
+  /* ---------- initialisation ---------- */
+  rendreAccueil();
   $("#opt-feedback").onchange = (e) => (options.feedback = e.target.checked);
   $("#opt-jauges").onchange = (e) => { options.jauges = e.target.checked; if (etat) majJauges(); };
-  $("#btn-commencer").onclick = () => demarrer(cleCourante);
-  $("#btn-quitter").onclick = () => { clearInterval(minuteur); $("#ecran-jeu").hidden = true; $("#ecran-accueil").hidden = false; };
+  $("#btn-commencer").onclick = entrer;
+  $("#btn-entrer").onclick = entrer;
+  $("#btn-quitter").onclick = retourCouloir;
+  $("#bulle").onclick = () => frappe && frappe.terminer();
+  $("#btn-transcript").onclick = () => {
+    const o = $("#transcript").classList.toggle("ouvert");
+    $("#btn-transcript").setAttribute("aria-expanded", o);
+  };
+  $("#btn-fermer-transcript").onclick = () => { $("#transcript").classList.remove("ouvert"); $("#btn-transcript").setAttribute("aria-expanded", false); };
+
+  document.querySelectorAll("[data-ouvre]").forEach((b) => (b.onclick = () => document.getElementById(b.dataset.ouvre).showModal()));
+  document.querySelectorAll("dialog").forEach((d) => {
+    d.querySelectorAll("[data-ferme]").forEach((b) => (b.onclick = () => d.close()));
+    d.addEventListener("click", (e) => { if (e.target === d) d.close(); });
+  });
+
   document.addEventListener("keydown", (e) => {
-    if ($("#ecran-jeu").hidden) return;
-    const b = $("#zone-choix").querySelectorAll(".choix")[+e.key - 1];
-    if (b) b.click();
+    if (document.querySelector("dialog[open]") || $("#ecran-jeu").hidden) return;
+    if (frappe) {
+      if (e.key === " " || e.key === "Enter") { e.preventDefault(); frappe.terminer(); }
+      return;
+    }
+    if (e.target.closest("button") && (e.key === " " || e.key === "Enter")) return;
+    if (e.key === "0" && !$("#btn-silence").hidden) { $("#btn-silence").click(); return; }
+    if (/^[1-9]$/.test(e.key)) {
+      const b = $("#zone-choix").querySelectorAll(".choix")[+e.key - 1];
+      if (b) b.click();
+    }
   });
 }
