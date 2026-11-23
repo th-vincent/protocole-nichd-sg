@@ -1,0 +1,5 @@
+# IA installée localement par outils/telecharger-ia.py (trop lourde pour GitHub)
+modeles/
+vendor/
+*.part
+__pycache__/

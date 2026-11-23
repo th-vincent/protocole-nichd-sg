@@ -6,8 +6,17 @@ L'enfant réagit selon le type d'intervention et selon son état (confiance, str
 
 ## Lancer le jeu
 
-Ouvrez `index.html` dans un navigateur. Il n'y a rien à installer.
-Pour le mettre en ligne, poussez le repo sur GitHub puis activez **Settings → Pages → branche `main`, dossier racine**.
+```
+python3 outils/lancer.py
+```
+
+Le lanceur installe l'IA de la saisie libre sur le PC au premier lancement (~140 Mo, une seule fois), démarre un petit serveur local et ouvre le navigateur. L'IA se charge alors depuis le disque dès l'ouverture de la page, en quelques secondes et sans connexion.
+
+Il faut un serveur local, car un navigateur interdit à une page ouverte en double-clic de lire d'autres fichiers du disque. Pour installer l'IA sans lancer le jeu : `python3 outils/telecharger-ia.py`.
+
+Il reste possible d'ouvrir `index.html` en double-clic : tout fonctionne, mais l'IA est alors téléchargée depuis internet à la première utilisation.
+
+Pour mettre le jeu en ligne, poussez le repo sur GitHub puis activez **Settings → Pages → branche `main`, dossier racine**. Les dossiers `modeles/` et `vendor/` ne sont pas versionnés (le modèle dépasse la limite de 100 Mo de GitHub) : en ligne, l'IA vient d'internet.
 
 ## Structure
 
@@ -22,6 +31,8 @@ js/moteur.js                  moteur générique : état, conditions, silence, s
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
 scenarios/noah.js             Noah, 6 ans, témoin (conflit de loyauté, récit déjà influencé par les adultes)
 outils/verifier-scenarios.js  vérifie liens, faits, types, conditions et nœuds inatteignables
+outils/lancer.py              lance le jeu (serveur local) et installe l'IA si besoin
+outils/telecharger-ia.py      installe l'IA sur le PC (modeles/ et vendor/, ignorés par git)
 ```
 
 **Règle d'or : le moteur ne contient aucun contenu.** On écrit les scénarios dans `scenarios/` sans toucher au JS.
@@ -78,10 +89,12 @@ Cochez « Saisie libre » sur la fiche du couloir : le gendarme tape ses questio
 Pour chaque phrase tapée, l'analyse se fait en trois temps :
 1. [js/classifieur.js](js/classifieur.js) applique ses règles. Il repère le type de question, les éléments contaminants (des mots du dossier que l'enfant n'a pas encore dits), le ton, et les questions incompréhensibles : double question, jargon, phrase trop longue. L'enfant est alors perdu : « Je comprends pas… ».
 2. L'IA compare la phrase aux exemples de [js/ia-exemples.js](js/ia-exemples.js). Elle reconnaît les questions courantes (« Comment ça va ? », « Tu veux de l'eau ? », « Tu veux une pause ? », « d'accord », « je vois ») et tranche les cas où les règles hésitent.
-3. Le moteur cherche la réponse de l'enfant, dans cet ordre :
-   - la proposition du scénario la plus proche **en sens** ;
-   - une branche de saisie libre (`libre` dans un nœud, `saisieLibre.globaux` pour tout le scénario) ;
-   - une réaction générique selon le type de question.
+3. Le moteur **classe la phrase parmi les réponses possibles de l'étape en cours** (`classerDansNoeud` dans `js/classifieur.js`). Les candidates sont :
+   - les propositions du nœud ;
+   - ses branches `libre` ;
+   - les branches `saisieLibre.globaux` autorisées dans cette phase.
+
+   Chacune reçoit un score qui combine le sens (IA), l'accord du type de question, les `motsCles` et les prénoms. L'étape en cours passe avant les branches globales, et un mot-clé explicite de l'étape l'emporte toujours. Une invitation ou un soutien sans correspondance prend la sortie de l'étape la plus proche en sens. La réaction générique selon le type n'intervient qu'en dernier recours.
 
 Garde-fous :
 - une proposition qui introduit un élément contaminant n'est jamais choisie si l'enquêteur ne l'a pas tapé ;

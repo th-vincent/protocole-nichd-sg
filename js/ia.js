@@ -2,6 +2,8 @@
  * Petite IA locale pour la saisie libre : un modèle d'embeddings multilingue qui tourne dans le navigateur
  * (transformers.js + Xenova/paraphrase-multilingual-MiniLM-L12-v2, ~120 Mo téléchargés une fois puis mis en cache).
  * Aucune clé, aucun serveur : rien de ce que tape l'enquêteur ne quitte la machine.
+ * Installée sur le PC (python3 outils/telecharger-ia.py puis python3 outils/lancer.py), elle se charge
+ * depuis le disque dès l'ouverture de la page ; sinon elle est téléchargée à la première utilisation.
  *
  * Il sert à comparer le SENS des phrases :
  *   - analyser(texte) → { v, types: [[type, score]…], intention } à partir de window.EXEMPLES_NICHD
@@ -9,22 +11,44 @@
  * Si le chargement échoue (hors ligne, navigateur trop ancien), le jeu reste jouable avec les règles seules.
  */
 window.IA = (() => {
-  const URL_LIB = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6";
+  const URL_LIB = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6";   // même version que outils/telecharger-ia.py
   const MODELE = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
   const cache = new Map();
+  // IA installée sur ce PC par outils/telecharger-ia.py (servie par outils/lancer.py)
+  const BASE = new URL("./", location.href).href;
+  const LOCAL_LIB = "vendor/transformers/", LOCAL_MODELES = "modeles/";
+  const existe = async (chemin) => {
+    if (!location.protocol.startsWith("http")) return false;   // file:// : le navigateur interdit de lire le disque
+    try { return (await fetch(BASE + chemin, { method: "HEAD", cache: "no-store" })).ok; } catch { return false; }
+  };
   let extracteur = null, banque = [], intentions = [], promesse = null;
 
   const ia = {
     etat: "inactif",          // inactif | chargement | pret | erreur
+    local: null,              // true si l'IA est installée sur ce PC
     progression: 0,           // 0–100 pendant le téléchargement
     surChangement: null,      // rappel (etat, progression) pour l'interface
+
+    async verifierLocal() {
+      if (ia.local === null)
+        ia.local = (await existe(LOCAL_LIB + "transformers.min.js")) && (await existe(`${LOCAL_MODELES}${MODELE}/onnx/model_quantized.onnx`));
+      return ia.local;
+    },
 
     charger() {
       if (promesse) return promesse;
       changer("chargement", 0);
       promesse = (async () => {
-        const { pipeline, env } = await import(URL_LIB);
-        env.allowLocalModels = false;
+        const local = await ia.verifierLocal();
+        const { pipeline, env } = await import(local ? BASE + LOCAL_LIB + "transformers.min.js" : URL_LIB);
+        if (local) {
+          env.allowLocalModels = true;
+          env.allowRemoteModels = false;
+          env.localModelPath = BASE + LOCAL_MODELES;
+          env.backends.onnx.wasm.wasmPaths = BASE + LOCAL_LIB;
+        } else {
+          env.allowLocalModels = false;
+        }
         extracteur = await pipeline("feature-extraction", MODELE, {
           dtype: "q8",
           progress_callback: (e) => { if (e.status === "progress" && /\.onnx$/.test(e.file || "")) changer("chargement", Math.round(e.progress || 0)); }

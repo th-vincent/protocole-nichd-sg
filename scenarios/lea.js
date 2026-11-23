@@ -480,7 +480,7 @@ exemples: ["Parle-moi de toi.", "Raconte-moi ce que tu fais quand tu n'es pas à
           reponse: { texte: "Oui !", expression: "detendu" }
         },
         {
-          question: "Hugo, il a quel âge ?",
+          question: "Hugo, il a quel âge ?", exemples: ["Il a quel âge, ton frère ?"],
           type: "directive", qualite: 1,
           feedback: "Question correcte mais peu productive : elle n'entraîne pas au récit.",
           reponse: "Dix ans. Il est en CM2."
@@ -653,6 +653,7 @@ exemples: ["Parle-moi de toi.", "Raconte-moi ce que tu fais quand tu n'es pas à
         },
         {
           question: "Tu sais, beaucoup d'enfants viennent ici pour parler de choses qui leur sont arrivées. Est-ce qu'il t'est arrivé quelque chose ?",
+          exemples: ["Est-ce qu'il t'est arrivé quelque chose ?", "Il s'est passé quelque chose ?"],
           type: "choix", qualite: 0,
           feedback: "Formule générale, mais en oui/non : l'enfant peut répondre « non », ou « oui » sans rien raconter. Gardez cette forme pour plus tard, si les invitations échouent.",
           mieux: "Dis-moi pourquoi tu es venue me parler aujourd'hui.",
@@ -1086,7 +1087,7 @@ exemples: ["Parle-moi de toi.", "Raconte-moi ce que tu fais quand tu n'es pas à
         },
         {
           question: "Non, ne t'inquiète pas : tu ne le reverras plus jamais.",
-          type: "inadaptee", qualite: -1, effets: { stress: -1 }, motsCles: "plus jamais|ne t'inquiete pas|je te (le )?promets",
+          type: "inadaptee", qualite: -1, effets: { stress: -1 }, motsCles: "plus jamais|ne t'inquiete pas|je te (le )?promets|\\bpromis\\b|(re)?verras (plus|jamais)",
           feedback: "Promesse que vous ne pouvez pas garantir. Si elle n'est pas tenue, l'enfant perdra confiance dans les adultes qui l'ont entendue.",
           mieux: "Je ne peux pas te répondre maintenant ; je vais en parler avec ta maman.",
           reponse: "D'accord.",

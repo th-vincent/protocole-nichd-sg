@@ -44,7 +44,7 @@ window.ClassifieurNICHD = (() => {
     doux: /s'il te plait|doucement|ma (puce|grande|cherie)|mon (grand|bonhomme|cheri)/,
     jargon: /\b(circonstances?|relater|agression|agresse|infraction|victimes?|auteur des faits|mis en cause|prejudice|violences?|maltraitances?|sevices|deposition|proces-verbal|temoignage|interpellation|denoncer|plainte|faits reproches|chronologie|elements? factuels?|deroulement des faits|signalement)\b/,
     soutien: /(prends? (bien )?(ton|le|tout ton) temps|tu m'aides|tu fais (beaucoup d'|de gros |des |plein d')?efforts?|c'est (pas grave|difficile|dur|normal)|ce n'est pas grave|on (a|n'est pas) (tout )?(le temps|presses?)|tu peux souffler|je suis la pour t'ecouter|tu te debrouilles (tres )?bien|tu racontes (tres |vraiment )?bien|on peut faire une pause|tu n'es pas oblige)/,
-    inadaptee: /(tu dois|il faut (absolument )?que tu|tu es (sur|sure)\b|t'es (sur|sure)|tu (en )?es certaine?|ne t'inquiete pas|tu ne (le|la) (reverras|verras)|je te (le )?promets|en prison|c'est (pas bien|mal) ce qu|il n'avait pas le droit|c'est grave|courageu|n'aie pas peur|tu n'as rien fait de mal|on va le punir|grace a toi|tu vas avoir des problemes|menteu|tu mens)/,
+    inadaptee: /(tu dois|il faut (absolument )?que tu|tu es (sur|sure)\b|t'es (sur|sure)|tu (en )?es certaine?|ne t'inquiete pas|tu ne (le|la) (reverras|verras)|je te (le )?promets|en prison|\\bpromis\\b|tu (ne )?(le|la) (re)?verras (plus|jamais)|c'est (pas bien|mal) ce qu|il n'avait pas le droit|c'est grave|courageu|n'aie pas peur|tu n'as rien fait de mal|on va le punir|grace a toi|tu vas avoir des problemes|menteu|tu mens)/,
     presentation: /(je m'appelle|je suis (un |une |le |la )?(gendarme|enqueteu|policier|policiere)|mon (travail|metier|role)|la camera|filme|enregistre)/,
     salutation: /^(bonjour|salut|coucou|hello|bonsoir)\b/,
     regles: /(je ne sais pas|je sais pas|(si )?tu (ne )?sais pas|je ne comprends pas|je comprends pas|me corriger|tu me corriges|corrige|tu (me )?promets|promets-moi|(nom|prenom) de mon (chat|chien)|vraiment passe|des regles|c'est vrai ou (pas vrai|faux|un mensonge)|vrai ou pas)/,
@@ -55,7 +55,7 @@ window.ClassifieurNICHD = (() => {
     pourquoi: /\bpourquoi\b/,
     directive: /\b(qui|quand|comment|quels?|quelles?|combien|quoi|lequel|laquelle)\b|qu'est-ce que|qu'est ce que|c'est quoi|\bou\s*\?|\bou (est|etait|etais|ca|c'etait|tu)\b/,
     alternative: /\S+ ou (bien )?[a-z]/,
-    fermee: /^(est-ce que|est ce que|es-tu|as-tu|avais-tu|etait-il|etait-elle|a-t-il|a-t-elle|il t'a|elle t'a|tu as|tu es|tu etais|c'etait|il etait|elle etait|tu avais|il y avait|y avait|tu sais|tu veux|tu peux|tu connais|tu te souviens|ca t'a|ca a)\b/
+    fermee: /^(est-ce que|est ce que|es-tu|as-tu|avais-tu|etait-il|etait-elle|a-t-il|a-t-elle|il t'a|elle t'a|tu as|tu es|tu etais|c'etait|il etait|elle etait|tu avais|il y avait|y avait|tu sais|tu veux|tu peux|tu connais|tu te souviens|ca t'a|ca a|il t'est|il t'a)\b/
   };
 
   // questions courantes reconnues même sans IA (définitions dans js/ia-exemples.js)
@@ -147,5 +147,35 @@ window.ClassifieurNICHD = (() => {
     return cls;
   }
 
-  return { norm, tokens, similarite, classer, fusionner, SEUIL_INTENTION, SEUIL_TYPE };
+  /*
+   * Classe la phrase tapée parmi les réponses possibles de l'étape en cours.
+   * candidats : [{ c, cle, origine: "noeud" | "libre" | "global", sim, textes }]  (sim = similarité de sens ou de mots)
+   * S         : seuils et bonus (voir SEUILS dans moteur.js)
+   * Renvoie les candidats triés par score : sens + accord du type de question + mots-clés + prénoms.
+   */
+  const FAMILLE = { invitation: "inv", invitation_indicee: "inv" };
+  function classerDansNoeud(texte, cls, candidats, S, noms = []) {
+    const n = norm(texte);
+    const cites = (t) => noms.filter((nom) => new RegExp("\\b" + norm(nom) + "\\b").test(norm(t)));
+    const nt = cites(texte);
+    return candidats.map((x) => {
+      let s = x.sim;
+      const mots = x.c.motsCles ? new RegExp(x.c.motsCles).test(n) : null;
+      if (mots === true) s = Math.max(s, S.motsCles) + S.bonusMots;
+      else if (mots === false) s -= S.maluMots;
+      // une branche globale (hors du nœud) ne vaut que si ses mots-clés ou le sens la désignent clairement
+      // l'étape en cours passe avant les branches globales
+      if (x.origine === "global") s = mots || x.sim >= S.globalSansMots ? s - 0.12 : -1;
+      const nc = (x.textes || []).flatMap(cites);
+      if (nt.length && nc.length && !nt.some((nom) => nc.includes(nom))) s -= 0.35;
+      if (x.c.type === cls.type) s += S.bonusType;
+      else if (FAMILLE[x.c.type] && FAMILLE[x.c.type] === FAMILLE[cls.type]) s += S.bonusType / 2;
+      else if (cls.type === "suggestive") s -= 0.25;
+      else if (x.c.type === "suggestive") s -= 0.15;
+      else s -= 0.06;
+      return { ...x, s, brut: x.sim, mots: mots === true };
+    }).sort((a, b) => b.s - a.s);
+  }
+
+  return { norm, tokens, similarite, classer, fusionner, classerDansNoeud, SEUIL_INTENTION, SEUIL_TYPE };
 })();
