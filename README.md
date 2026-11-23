@@ -15,7 +15,9 @@ Pour le mettre en ligne, poussez le repo sur GitHub puis activez **Settings → 
 index.html                    couloir (liège + porte), salle (décor, enfant SVG animé, console, transcription),
                               débrief, fiches « Protocole NICHD » et « Comment jouer »
 style.css                     styles et animations de l'enfant (expressions, agitation, réactions)
-js/classifieur.js             classe les questions tapées en saisie libre (règles, sans IA)
+js/classifieur.js             règles de classement des questions tapées (saisie libre)
+js/ia.js                      petite IA locale (sens des phrases), chargée depuis un CDN
+js/ia-exemples.js             exemples annotés pour l'IA + questions courantes (« Comment ça va ? »)
 js/moteur.js                  moteur générique : état, conditions, silence, soutien, frappe du texte, débrief
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
 scenarios/noah.js             Noah, 6 ans, témoin (conflit de loyauté, récit déjà influencé par les adultes)
@@ -67,20 +69,30 @@ Le moteur ajoute automatiquement :
 ## Saisie libre (Léa pour l'instant)
 
 Cochez « Saisie libre » sur la fiche du couloir : le gendarme tape ses questions au lieu de les choisir.
-`js/classifieur.js` analyse la phrase avec des règles simples, sans IA ni serveur. Il repère :
-- le type de question NICHD ;
-- les éléments contaminants (des mots du dossier que l'enfant n'a pas encore dits) ;
-- le ton (brusque ou chaleureux) ;
-- les questions incompréhensibles (double question, trop longue, jargon d'adulte, inclassable). L'enfant est alors perdu : « Je comprends pas… ».
 
-Le moteur cherche ensuite la réponse de l'enfant, dans cet ordre :
-1. une proposition du nœud très proche ou repérée par ses `motsCles` ;
-2. une branche réservée à la saisie libre (`libre` dans le nœud, ou `saisieLibre.globaux` pour tout le scénario) ;
-3. une réaction générique selon le type : « Je sais pas », « …Oui » pour une question fermée posée à un enfant stressé, « J'ai pas dit ça… » pour une fausse citation. Un nœud peut la remplacer avec `parType`.
+**Une petite IA locale** ([js/ia.js](js/ia.js)) comprend le sens des phrases. C'est un modèle d'embeddings multilingue (`paraphrase-multilingual-MiniLM-L12-v2` via transformers.js).
+- Il tourne dans le navigateur : pas de clé ni de serveur, et rien de ce qui est tapé ne quitte la machine.
+- Il pèse environ 120 Mo, téléchargés une seule fois (dès que la case est cochée) puis gardés en cache.
+- Hors ligne, le jeu bascule automatiquement sur les règles seules.
 
-Une question déjà posée provoque « Je te l'ai déjà dit… ». Le débrief indique, pour chaque phrase, comment elle a été interprétée.
+Pour chaque phrase tapée, l'analyse se fait en trois temps :
+1. [js/classifieur.js](js/classifieur.js) applique ses règles. Il repère le type de question, les éléments contaminants (des mots du dossier que l'enfant n'a pas encore dits), le ton, et les questions incompréhensibles : double question, jargon, phrase trop longue. L'enfant est alors perdu : « Je comprends pas… ».
+2. L'IA compare la phrase aux exemples de [js/ia-exemples.js](js/ia-exemples.js). Elle reconnaît les questions courantes (« Comment ça va ? », « Tu veux de l'eau ? », « Tu veux une pause ? », « d'accord », « je vois ») et tranche les cas où les règles hésitent.
+3. Le moteur cherche la réponse de l'enfant, dans cet ordre :
+   - la proposition du scénario la plus proche **en sens** ;
+   - une branche de saisie libre (`libre` dans un nœud, `saisieLibre.globaux` pour tout le scénario) ;
+   - une réaction générique selon le type de question.
 
-Pour l'activer sur un autre scénario, ajoutez-y un bloc `saisieLibre`. Le format est documenté dans `scenarios/lea.js`.
+Garde-fous :
+- une proposition qui introduit un élément contaminant n'est jamais choisie si l'enquêteur ne l'a pas tapé ;
+- les prénoms (`saisieLibre.noms`) empêchent de confondre « Inès, c'est qui ? » et « Kévin, c'est qui ? » ;
+- une question précise reposée, même reformulée, donne « Je te l'ai déjà dit… ».
+
+**Pour améliorer la compréhension**, le plus efficace est d'ajouter des formulations réelles :
+- dans [js/ia-exemples.js](js/ia-exemples.js), pour le type de question ou une nouvelle question courante ;
+- ou dans le champ `exemples` d'une proposition ou d'une branche du scénario.
+
+Le débrief indique, pour chaque phrase, comment elle a été interprétée.
 
 ## Travailler à 4
 

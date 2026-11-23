@@ -93,6 +93,7 @@ window.SCENARIOS.lea = {
    *                  motsCles : regex qui déclenche la branche ; typesLibres : types de question acceptés.
    */
   saisieLibre: {
+    noms: ["Léa", "Kévin", "Inès", "Hugo", "Lucas", "Mathis"],
     contaminations: [
       { motif: "\\bbras\\b", fait: "c_bras", sauf: ["auteur"] },
       { motif: "\\b(monsieur|adulte|homme)\\b", fait: "c_adulte" },
@@ -103,16 +104,18 @@ window.SCENARIOS.lea = {
       { motif: "(eu|avoir|fait|faisait)( tres| si| super| trop)? peur|effray|terrifi|\\bpeur\\b.*\\?", fait: "c_peur" },
       { motif: "desob|obei", fait: "c_desobeir" },
       { motif: "(fait|faire|fais|faisait) (du )?mal|blesse", fait: "c_mal", sauf: ["auteur"] },
-      { motif: "souvent|tout le temps|d'autres fois|chaque (fois|mercredi)|il fait toujours|encore recommence", fait: "c_souvent" }
+      { motif: "souvent|tout le temps|chaque (fois|mercredi)|il fait toujours|il recommence", fait: "c_souvent" }
     ],
     globaux: [
       { phases: ["rapport"], typesLibres: ["invitation", "invitation_indicee"], type: "invitation", effets: { confiance: 2, stress: -1 },
-        motsCles: "(aimes?|adores?)( bien)? (faire|jouer)|ce que tu aimes|te connaitre|tes loisirs|passions?|tu fais quoi (le|quand|apres|pendant)",
+exemples: ["Parle-moi de toi.", "Raconte-moi ce que tu fais quand tu n'es pas à l'école.", "Qu'est-ce que tu fais pendant ton temps libre ?", "Parle-moi de ce que tu aimes.", "Raconte-moi tes passions."],
+        motsCles: "(aimes?|adores?)( bien)? (faire|jouer)|ce que tu aimes|te connaitre|parle-moi (un peu )?de toi|tes loisirs|passions?|tu fais quoi (le|quand|apres|pendant)|pas a l'ecole",
         question: "Raconte-moi les choses que tu aimes faire.",
         feedback: "Invitation ouverte en phase de rapport : l'enfant parle de ce qu'elle aime et s'habitue aux réponses longues.",
         suivant: "rapport_2" },
       { phases: ["introduction", "regles"], typesLibres: ["invitation", "invitation_indicee"], type: "invitation", qualite: 0, effets: { confiance: 1 },
-        motsCles: "(aimes?|adores?)( bien)? (faire|jouer)|ce que tu aimes|te connaitre|tes loisirs|passions?",
+exemples: ["Parle-moi de toi.", "Raconte-moi ce que tu fais quand tu n'es pas à l'école.", "Qu'est-ce que tu fais pendant ton temps libre ?", "Parle-moi de ce que tu aimes.", "Raconte-moi tes passions."],
+        motsCles: "(aimes?|adores?)( bien)? (faire|jouer)|ce que tu aimes|te connaitre|parle-moi (un peu )?de toi|tes loisirs|passions?|pas a l'ecole",
         question: "Raconte-moi les choses que tu aimes faire.",
         feedback: "Bonne invitation de rapport, mais vous sautez le cadre : présentation (rôle, caméra) et règles de base n'ont pas été posées.",
         selon: [
@@ -137,7 +140,8 @@ window.SCENARIOS.lea = {
         feedback: "Sujet bien choisi pour l'entraînement, mais posez-le en invitation : « Raconte-moi tout ce qui s'est passé à ton anniversaire, du début à la fin. »",
         reponse: "En mai. On a mangé un gâteau au chocolat." },
       { phases: ["rapport", "memoire"], typesLibres: ["invitation", "invitation_indicee"], type: "invitation",
-        motsCles: "ce matin|aujourd'hui|depuis que tu t'es reveill|ta matinee|ton week-end|hier",
+        exemples: ["Raconte-moi ta matinée.", "Raconte-moi ce que tu as fait depuis que tu t'es levée.", "Qu'est-ce que tu as fait ce matin ?"],
+        motsCles: "ce matin|aujourd'hui|depuis que tu t'es (reveill|leve)|ta matinee|ton week-end|hier",
         question: "Raconte-moi tout ce que tu as fait ce matin, depuis ton réveil.",
         feedback: "Entraînement à la mémoire épisodique sur un événement neutre et tout récent : très bon choix.",
         suivant: "memoire_matin" },
@@ -157,15 +161,26 @@ window.SCENARIOS.lea = {
         feedback: "Question sur la révélation, prévue par le protocole : elle éclaire à qui l'enfant a parlé, et donc les influences possibles.",
         reponse: "Inès. Et après la maîtresse, lundi, parce qu'elle a vu mon bras en sport." },
       { phases: ["recit"], si: { faits: ["auteur"], sans_faits: ["frequence"] }, type: "choix", qualite: 2, faits: ["frequence"],
-        motsCles: "une fois ou|plus d'une fois|plusieurs fois|combien de fois|deja arrive|la premiere fois",
+        motsCles: "une fois ou|plus d'une fois|plusieurs fois|combien de fois|deja (arrive|passe)|d'autres fois|la premiere fois",
         question: "Est-ce que c'est arrivé une fois, ou plus d'une fois ?",
         feedback: "Question recommandée par le protocole pour distinguer un fait unique de faits répétés.",
         reponse: "Une fois. Juste mercredi." },
       { phases: ["recit"], si: { faits: ["auteur"], sans_faits: ["identite"] }, type: "directive", qualite: 1, faits: ["identite"],
-        motsCles: "kevin.*(qui|c'est qui)|qui (est|c'est) kevin|c'est qui",
+        motsCles: "kevin.*(qui|c'est qui)|qui (est|c'est) kevin|c'est qui (kevin|le)",
         question: "Kévin, c'est qui ?",
         feedback: "Question directive utile sur une personne citée par l'enfant. Faites-la suivre d'une invitation (appariement).",
         reponse: "C'est l'animateur. Il a des lunettes." },
+      { phases: ["recit"], si: { faits: ["temoin"] }, typesLibres: ["directive", "choix", "invitation", "invitation_indicee"], type: "directive", qualite: 1,
+        motsCles: "\\bines\\b",
+        question: "Inès, c'est qui ?",
+        feedback: "Question directive sur une personne citée par l'enfant. Pensez à la faire suivre d'une invitation (appariement).",
+        reponse: "C'est ma copine. Elle est dans ma classe. Elle m'a fait un câlin." },
+      { phases: ["recit"], si: { faits: ["auteur"] }, type: "directive", qualite: 1, faits: ["insistance"],
+        motsCles: "t'a fait quoi|qu'est-ce qu'il (t')?a fait|il a fait quoi|ce qu'il t'a fait",
+        question: "Qu'est-ce qu'il t'a fait ?",
+        feedback: "Question directive sur l'acte, déjà évoqué par Léa : la réponse reste dans ses mots. Une invitation (« Raconte-moi tout sur ce moment ») en aurait obtenu davantage.",
+        mieux: "Tu as dit qu'il t'a attrapé le bras. Raconte-moi tout sur ce moment.",
+        reponse: "Il m'a attrapé le bras et il a serré très fort. Je lui ai dit qu'il me faisait mal, mais il a pas lâché." },
       { phases: ["recit"], si: { faits: ["auteur"] }, type: "directive", qualite: 2,
         motsCles: "comment tu t'es sentie?|tu as ressenti|qu'est-ce que tu as ressenti|comment ca t'a fait|comment tu te sentais|tu te sentais comment",
         question: "Comment tu t'es sentie à ce moment-là ?",
@@ -217,6 +232,12 @@ window.SCENARIOS.lea = {
         feedback: "Léa n'était pas en difficulté : revenir au rapport ici casse l'élan du récit.",
         selon: [{ si: { stress_min: 6 }, qualite: 2, feedback: "Retour bref au rapport face à une enfant tendue : la pression retombe, vous pourrez reprendre ensuite." }],
         reponse: { texte: "…J'ai dessiné un cheval. Il s'appelle Tonnerre.", expression: "neutre" } },
+      { phases: ["recit"], si: { faits: ["auteur"] }, typesLibres: ["consigne", "choix", "directive"], type: "consigne", qualite: 0,
+        motsCles: "(as|aurais) (des|une) questions?|tu veux me demander|on a (fini|termine)|c'est (fini|termine)",
+        question: "Merci Léa. Est-ce que tu as des questions ?",
+        feedback: "Clôture prématurée : vous n'avez pas demandé s'il y avait autre chose à ajouter, et plusieurs éléments du récit restent inexplorés.",
+        selon: [{ si: { faits: ["marque", "revelation"] }, qualite: 1, feedback: "Clôture un peu rapide : demandez d'abord « Y a-t-il autre chose que tu penses que je devrais savoir ? »." }],
+        suivant: "cloture_question" },
       { phases: ["recit"], type: "invitation", qualite: 2,
         motsCles: "autre chose|rien d'autre|quelque chose d'autre|tu veux (ajouter|me dire)",
         question: "Y a-t-il autre chose que tu penses que je devrais savoir ?",
@@ -286,7 +307,7 @@ window.SCENARIOS.lea = {
         regles: {
           qualite: 2, effets: { confiance: 1 }, suivant: "regles_test",
           feedback: "Règle posée et testée avec une question impossible : exactement ce que recommande le protocole.",
-          exige: { motif: "comment (s'appelle|il s'appelle|elle s'appelle)|quel est le nom|c'est quoi le nom|si je te demande",
+          exige: { motif: "comment (s'appelle|il s'appelle|elle s'appelle)|quel est le nom|c'est quoi le (pre)?nom|(pre)?nom de mon|si je te demande",
             sinon: { qualite: 1, suivant: null, reponse: "D'accord.", feedback: "Règle posée, mais pas testée : vérifiez-la avec une question impossible (« Comment s'appelle mon chien ? »)." } }
         }
       },
@@ -303,7 +324,7 @@ window.SCENARIOS.lea = {
         },
         {
           question: "Avant qu'on commence : ici, c'est très important de dire la vérité. Tu sais faire la différence entre la vérité et un mensonge ?",
-          type: "consigne", qualite: 1, effets: { stress: 1 },
+          type: "consigne", qualite: 1, effets: { stress: 1 }, motsCles: "difference|mensonge",
           feedback: "L'engagement à dire la vérité est utile, mais demander à l'enfant de définir vérité et mensonge est abstrait et peu prédictif. Le protocole préfère un exemple concret, puis une promesse simple.",
           mieux: "Si je te dis que mes chaussures sont rouges, c'est vrai ou pas vrai ? … Tu promets de me dire seulement ce qui s'est vraiment passé ?",
           reponse: { texte: "…Oui. Un mensonge c'est quand on dit pas vrai.", expression: "inquiet" }

@@ -215,6 +215,8 @@
     $("#transcript").classList.remove("ouvert");
     appliquerApparence();
     $("#qui").textContent = sc.prenom;
+    if (modeLibre() && window.IA) { window.IA.charger(); }
+    afficherEtatIA();
     majJauges();
     allerA(sc.depart);
   }
@@ -292,48 +294,100 @@
 
   /* ---------- saisie libre : interpréter une question tapée ---------- */
   const CL = () => window.ClassifieurNICHD;
+  const iaPrete = () => window.IA && window.IA.etat === "pret";
 
-  function scorer(c, texte, cls) {
-    let s = CL().similarite(texte, tpl(c.question || ""));
-    if (c.motsCles) s = new RegExp(c.motsCles).test(CL().norm(texte)) ? Math.max(s, 0.6) + 0.2 : s - 0.15;
-    if (c.type === cls.type) s += 0.12;
-    else if (cls.type === "suggestive" && c.type !== "suggestive") s -= 0.25;
-    return s;
+  // Seuils de rapprochement : similarité de sens (IA) ou recouvrement de mots (règles, si l'IA est indisponible)
+  const SEUILS = {
+    ia:     { exact: 0.9, proche: 0.72, global: 0.72, globalSansMots: 0.8, bonusType: 0.05, motsCles: 0.75, bonusMots: 0.1, maluMots: 0.05 },
+    regles: { exact: 0.8, proche: 0.5, global: 0.5, globalSansMots: 9, bonusType: 0.12, motsCles: 0.6, bonusMots: 0.2, maluMots: 0.15 }
+  };
+  const textesDe = (c) => [tpl(c.question || ""), ...(c.exemples || [])].filter(Boolean);
+
+  // similarité brute entre la phrase tapée et une proposition (sa question et ses éventuels `exemples`)
+  async function similarites(candidats, texte, v) {
+    if (!v) return candidats.map(({ c }) => Math.max(...textesDe(c).map((t) => CL().similarite(texte, t))));
+    const tous = [...new Set(candidats.flatMap(({ c }) => textesDe(c)))];
+    const vecs = new Map((await window.IA.vecteurs(tous)).map((x, i) => [tous[i], x]));
+    return candidats.map(({ c }) => Math.max(...textesDe(c).map((t) => window.IA.cos(v, vecs.get(t)))));
   }
 
-  // une proposition qui n'introduit pas les éléments contaminants tapés ne peut pas les « absorber »
-  const compatible = (c, cls) => c.type === "suggestive" || cls.faits.every((f) => [].concat(c.faits || []).includes(f));
+  async function similaritesTextes(textes, texte, v) {
+    if (!v) return textes.map((t) => CL().similarite(texte, t));
+    return (await window.IA.vecteurs(textes)).map((x) => window.IA.cos(v, x));
+  }
 
-  function meilleur(candidats, texte, cls) {
+  // une proposition ne peut ni « absorber » des éléments contaminants tapés qu'elle n'introduit pas,
+  // ni en introduire que l'enquêteur n'a pas tapés
+  const contaminants = (c) => [].concat(c.faits || []).filter((f) => sc.faits[f] && !sc.faits[f].fiable);
+  const compatible = (c, cls) =>
+    (c.type === "suggestive" || cls.faits.every((f) => [].concat(c.faits || []).includes(f)))
+    && contaminants(c).every((f) => cls.faits.includes(f));
+
+  // prénoms cités (liste saisieLibre.noms) : on ne rapproche pas deux questions sur des personnes différentes
+  const nomsCites = (t) => (sc.saisieLibre.noms || []).filter((nom) => new RegExp("\\b" + CL().norm(nom) + "\\b").test(CL().norm(t)));
+
+  async function meilleur(candidats, texte, cls, v, S) {
+    const ok = candidats.filter(({ c }) => verifie(c.si) && (!c.typesLibres || c.typesLibres.includes(cls.type)));
+    const sims = await similarites(ok, texte, v);
     let best = null;
-    for (const x of candidats) {
-      if (!verifie(x.c.si) || (x.c.typesLibres && !x.c.typesLibres.includes(cls.type))) continue;
-      const s = scorer(x.c, texte, cls);
-      if (!best || s > best.s) best = { ...x, s };
-    }
+    ok.forEach((x, i) => {
+      let s = sims[i];
+      const brut = s;
+      if (x.c.motsCles) s = new RegExp(x.c.motsCles).test(CL().norm(texte)) ? Math.max(s, S.motsCles) + S.bonusMots : s - S.maluMots;
+      const nt = nomsCites(texte), nc = textesDe(x.c).flatMap(nomsCites);
+      if (nt.length && nc.length && !nt.some((nom) => nc.includes(nom))) s -= 0.35;
+      if (x.c.type === cls.type) s += S.bonusType;
+      else if (cls.type === "suggestive" && x.c.type !== "suggestive") s -= 0.25;
+      if (!best || s > best.s) best = { ...x, s, brut };
+    });
     return best;
   }
 
-  // Ordre : proposition du nœud quasi identique → proposition proche (nœud ou branches « libre »)
-  // → branche globale du scénario → réaction générique selon le type de question.
-  function interpreter(texte, n) {
+  // Ordre : proposition du nœud quasi identique → intention courante (« Comment ça va ? ») → proposition proche
+  // (nœud ou branches « libre ») → branche globale du scénario → réaction générique selon le type de question.
+  async function interpreter(texte, n) {
+    let ia = null;
+    if (iaPrete()) { try { ia = await window.IA.analyser(texte); } catch (e) { console.warn(e); } }
+    const v = ia && ia.v, S = v ? SEUILS.ia : SEUILS.regles;
     const motsEnfant = new Set(journal.flatMap((j) => (j.enfant ? CL().tokens(j.enfant) : [])));
-    const cls = CL().classer(texte, { prenom: sc.prenom, contaminations: sc.saisieLibre.contaminations, faitsConnus: faits, motsEnfant });
+    const regles = CL().classer(texte, { prenom: sc.prenom, contaminations: sc.saisieLibre.contaminations, faitsConnus: faits, motsEnfant });
+    const cls = CL().fusionner(regles, ia);
     const base = { texte, cls };
     if (cls.type === "silence") return { c: choixSilence(n), cle: null, libre: base };
 
-    const locaux = [...n.choix.map((c, i) => ({ c, cle: i })), ...(n.libre || []).map((c, i) => ({ c, cle: "L" + i }))];
-    // une branche globale ne se déclenche que sur ses mots-clés
-    const globaux = (sc.saisieLibre.globaux || []).map((c, i) => ({ c, cle: "G" + i }))
-      .filter(({ c }) => (!c.phases || c.phases.includes(n.phase)) && new RegExp(c.motsCles).test(CL().norm(texte)));
-    const valable = (x, seuil) => x && x.s >= seuil && compatible(x.c, cls);
+    // question précise déjà posée (même reformulée) : l'enfant croit que sa réponse était fausse
+    if (cls.type === "directive" || cls.type === "choix") {
+      const deja = journal.filter((j) => j.question && (j.type === "directive" || j.type === "choix")).map((j) => j.question);
+      if (deja.length && Math.max(...(await similaritesTextes(deja, texte, v))) >= (v ? 0.93 : 0.9))
+        return { c: repetition({ type: cls.type }), cle: null, libre: base };
+    }
 
-    let m = meilleur(locaux, texte, cls);
-    if (!valable(m, 0.8)) {
+    const locaux = [...n.choix.map((c, i) => ({ c, cle: i })), ...(n.libre || []).map((c, i) => ({ c, cle: "L" + i }))];
+    const valable = (x, seuil) => x && x.s >= seuil && compatible(x.c, cls);
+    let m = await meilleur(locaux, texte, cls, v, S);
+
+    if (!valable(m, S.exact)) {
+      if (cls.intention && !(valable(m, S.proche) && m.brut >= cls.intention.score))
+        return { c: intention(cls.intention.def, n), cle: "I" + cls.intention.id, libre: base };
       if (cls.type === "incomprise") m = null;
-      else if (!valable(m, 0.5)) {
-        const g = meilleur(globaux, texte, cls);
-        m = valable(g, 0.5) ? g : null;
+      else if (!valable(m, S.proche)) {
+        // une branche globale se déclenche sur ses mots-clés, ou (avec l'IA) sur un sens très proche
+        const norm = CL().norm(texte);
+        const cands = (sc.saisieLibre.globaux || []).map((c, i) => ({ c, cle: "G" + i })).filter(({ c }) => !c.phases || c.phases.includes(n.phase));
+        const g = await meilleur(cands, texte, cls, v, S);
+        const declenche = g && (new RegExp(g.c.motsCles).test(norm) || g.brut >= S.globalSansMots);
+        m = declenche && valable(g, S.global) ? g : null;
+      }
+    }
+    // invitation ou soutien sans correspondance : la sortie du nœud du même genre la plus proche en sens
+    // (une invitation ouverte vaut pour n'importe quel sujet déjà en cours)
+    const famille = { invitation: ["invitation", "invitation_indicee"], invitation_indicee: ["invitation", "invitation_indicee"], soutien: ["soutien"] }[cls.type];
+    if (!m && famille && !cls.citationFausse && !(cls.type === "soutien" && soutiens.has(noeudId))) {
+      const sorties = locaux.filter(({ c }) => famille.includes(c.type) && verifie(c.si) && c.suivant != null && c.suivant !== noeudId);
+      if (sorties.length) {
+        const sims = await similarites(sorties, texte, v);
+        const k = sims.indexOf(Math.max(...sims));
+        m = { ...sorties[k], s: sims[k], brut: sims[k] };
       }
     }
     if (!m) return { c: generique(cls, n, texte), cle: null, libre: base };
@@ -345,8 +399,18 @@
     return { c, cle: m.cle, libre: { ...base, rapproche: tpl(m.c.question || "") } };
   }
 
-  // les branches globales (G…) valent pour toute l'audition, les autres pour leur nœud
-  const cleUtilisee = (cle) => (String(cle).startsWith("G") ? cle : noeudId + "#" + cle);
+  // petites questions courantes (« Comment ça va ? »), définies dans js/ia-exemples.js
+  function intention(def, n) {
+    if (def.commeSilence) {
+      const s = choixSilence(n);
+      return { ...s, type: def.type, feedback: def.feedback + " " + s.feedback };
+    }
+    const { id, exemples, exigeQuestion, ...c } = def;
+    return { effets: {}, ...c };
+  }
+
+  // les branches globales (G…) et intentions (I…) valent pour toute l'audition, les autres pour leur nœud
+  const cleUtilisee = (cle) => (/^[GI]/.test(String(cle)) ? cle : noeudId + "#" + cle);
 
   function repetition(c) {
     return {
@@ -427,7 +491,10 @@
     const pt = n.parType || {};
     const sur = pt[cls.sousType] ?? pt[cls.type] ?? (cls.type !== "incomprise" ? pt.defaut : null);
     if (sur != null) {
-      g = { ...g, ...(typeof sur === "number" ? n.choix[sur] : sur) };
+      const o = typeof sur === "number" ? n.choix[sur] : sur;
+      g = { ...g, ...o };
+      // on change de nœud sans réplique imposée : c'est la réplique du nœud d'arrivée qui compte
+      if (o.suivant != null && !("reponse" in o)) delete g.reponse;
       if (g.exige && !new RegExp(g.exige.motif).test(CL().norm(texte))) g = { ...g, ...g.exige.sinon };
     }
     return { ...g, type: cls.type };
@@ -452,6 +519,8 @@
   function interpretationTexte(c, libre) {
     if (libre.cls.type === "silence") return null;
     let s = libre.rapproche ? `Rapprochée de la formulation « ${libre.rapproche} »` : "Aucune formulation proche dans le scénario : réaction générique selon le type de question";
+    if (libre.cls.intention) s = "Reconnue comme une question courante : réaction adaptée";
+    if (libre.cls.parIA || libre.cls.intention) s += " · classée par l'IA";
     if (libre.cls.ton === "dur") s += " · ton brusque";
     else if (libre.cls.ton === "doux") s += " · ton chaleureux";
     return s;
@@ -581,12 +650,16 @@
           <button class="btn principal" type="submit">Dire</button>
         </form>`;
       const ta = $("#saisie");
-      $("#form-libre").onsubmit = (e) => {
+      $("#form-libre").onsubmit = async (e) => {
         e.preventDefault();
         const t = ta.value.trim();
-        if (!t) { ta.focus(); return; }
-        const r = interpreter(t, n);
-        choisir(r.c, r.cle, r.libre);
+        if (!t || ta.disabled) { ta.focus(); return; }
+        ta.disabled = true;
+        try {
+          const r = await interpreter(t, n);
+          ta.disabled = false;
+          choisir(r.c, r.cle, r.libre);
+        } catch (err) { console.error(err); ta.disabled = false; }
       };
       ta.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#form-libre").requestSubmit(); } };
       $("#btn-silence").onclick = () => choisir(choixSilence(n), null);
@@ -771,7 +844,8 @@
         `<div class="postit" style="--c:${COULEURS[i % COULEURS.length]};--r:${ROTATIONS[i % ROTATIONS.length]}deg;animation-delay:${0.08 * (i + 1)}s">${echap(p)}</div>`).join("");
     const dispo = !!s.saisieLibre;
     $("#opt-libre").disabled = !dispo;
-    $("#libre-note").textContent = dispo ? "" : "(pas encore disponible pour ce dossier)";
+    $("#libre-note").textContent = dispo ? "(utilise une petite IA locale, ~120 Mo téléchargés une fois)" : "(pas encore disponible pour ce dossier)";
+    if (dispo) afficherEtatIA();
   }
 
   function entrer() {
@@ -804,7 +878,24 @@
   rendreAccueil();
   $("#opt-feedback").onchange = (e) => (options.feedback = e.target.checked);
   $("#opt-jauges").onchange = (e) => { options.jauges = e.target.checked; if (etat) majJauges(); };
-  $("#opt-libre").onchange = (e) => (options.libre = e.target.checked);
+  $("#opt-libre").onchange = (e) => {
+    options.libre = e.target.checked;
+    if (options.libre && window.IA) window.IA.charger();   // on télécharge le modèle pendant qu'on lit le dossier
+  };
+  function afficherEtatIA() {
+    if (!window.IA) return;
+    const { etat, progression } = window.IA;
+    const t = etat === "chargement" ? `IA : téléchargement du modèle${progression ? " " + progression + " %" : "…"} (une seule fois)`
+      : etat === "pret" ? "IA prête : vos phrases sont comprises par leur sens"
+      : etat === "erreur" ? "IA indisponible (hors ligne ?) : classement par règles" : "";
+    const el = $("#etat-ia");
+    el.textContent = t;
+    el.dataset.etat = etat;
+    el.hidden = !t || !modeLibreActif();
+    if (window.SCENARIOS[cleCourante].saisieLibre) $("#libre-note").textContent = options.libre ? t : "(utilise une petite IA locale, ~120 Mo téléchargés une fois)";
+  }
+  function modeLibreActif() { return options.libre && sc && !!sc.saisieLibre && !$("#ecran-jeu").hidden; }
+  if (window.IA) window.IA.surChangement = afficherEtatIA;
   $("#btn-commencer").onclick = entrer;
   $("#btn-entrer").onclick = entrer;
   $("#btn-quitter").onclick = retourCouloir;

@@ -48,6 +48,7 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
     if (!estSilence && !partiel && !c.question) err(`${ou} : question manquante`);
     if (!partiel && !c.feedback) err(`${ou} : feedback manquant`);
     if (c.motsCles) regex(c.motsCles, ou);
+    if (c.exemples && (!Array.isArray(c.exemples) || c.exemples.some((e) => typeof e !== "string"))) err(`${ou} : exemples doit être une liste de phrases`);
     (c.typesLibres || []).forEach((t) => { if (!TYPES.includes(t)) err(`${ou} : typesLibres inconnu "${t}"`); });
     (c.phases || []).forEach((ph) => { if (!PHASES.includes(ph)) err(`${ou} : phase inconnue "${ph}"`); });
     if (c.qualite != null && ![-2, -1, 0, 1, 2].includes(c.qualite)) err(`${ou} : qualite doit valoir -2, -1, 0, 1 ou 2`);

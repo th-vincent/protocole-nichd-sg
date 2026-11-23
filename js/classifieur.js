@@ -40,17 +40,17 @@ window.ClassifieurNICHD = (() => {
   }
 
   const P = {
-    dur: /\b(reponds|depeche|vite|allez|arrete|j'ai pas que ca|ne mens pas|mens pas|ecoute-moi bien|tais-toi|ca suffit)\b/,
+    dur: /(^|[.!] )reponds\b|reponds (quand|a ma|maintenant|tout de suite)|\b(depeche|vite|allez|arrete|j'ai pas que ca|ne mens pas|mens pas|ecoute-moi bien|tais-toi|ca suffit)\b/,
     doux: /s'il te plait|doucement|ma (puce|grande|cherie)|mon (grand|bonhomme|cheri)/,
     jargon: /\b(circonstances?|relater|agression|agresse|infraction|victimes?|auteur des faits|mis en cause|prejudice|violences?|maltraitances?|sevices|deposition|proces-verbal|temoignage|interpellation|denoncer|plainte|faits reproches|chronologie|elements? factuels?|deroulement des faits|signalement)\b/,
     soutien: /(prends? (bien )?(ton|le|tout ton) temps|tu m'aides|tu fais (beaucoup d'|de gros |des |plein d')?efforts?|c'est (pas grave|difficile|dur|normal)|ce n'est pas grave|on (a|n'est pas) (tout )?(le temps|presses?)|tu peux souffler|je suis la pour t'ecouter|tu te debrouilles (tres )?bien|tu racontes (tres |vraiment )?bien|on peut faire une pause|tu n'es pas oblige)/,
     inadaptee: /(tu dois|il faut (absolument )?que tu|tu es (sur|sure)\b|t'es (sur|sure)|tu (en )?es certaine?|ne t'inquiete pas|tu ne (le|la) (reverras|verras)|je te (le )?promets|en prison|c'est (pas bien|mal) ce qu|il n'avait pas le droit|c'est grave|courageu|n'aie pas peur|tu n'as rien fait de mal|on va le punir|grace a toi|tu vas avoir des problemes|menteu|tu mens)/,
     presentation: /(je m'appelle|je suis (un |une |le |la )?(gendarme|enqueteu|policier|policiere)|mon (travail|metier|role)|la camera|filme|enregistre)/,
     salutation: /^(bonjour|salut|coucou|hello|bonsoir)\b/,
-    regles: /(je ne sais pas|je sais pas|je ne comprends pas|je comprends pas|me corriger|tu me corriges|corrige|tu promets|promets-moi|vraiment passe|des regles|c'est vrai ou (pas vrai|faux|un mensonge)|vrai ou pas)/,
+    regles: /(je ne sais pas|je sais pas|(si )?tu (ne )?sais pas|je ne comprends pas|je comprends pas|me corriger|tu me corriges|corrige|tu (me )?promets|promets-moi|(nom|prenom) de mon (chat|chien)|vraiment passe|des regles|c'est vrai ou (pas vrai|faux|un mensonge)|vrai ou pas)/,
     cloture: /(merci|des questions|une question,? toi|au revoir|on a (fini|termine)|c'est (fini|termine)|tu peux (y aller|partir|retourner)|cet apres-midi|en rentrant|tu vas faire apres)/,
-    tag: /(\bhein\b|c'est ca\s*\?|n'est-ce pas|, non\s*\?|pas vrai\s*\?\s*$|j'imagine|je parie|je suppose|ca a du|tu as du|tu devais|forcement|sans doute|il a bien)/,
-    invitation: /(^|\b)(raconte|racontes|parle-moi|parle moi|dis-moi (tout|ce qui|ce que|pourquoi|plus)|explique-moi|decris-moi|et (ensuite|apres|puis)\b|qu'est-ce qui (s'est passe|se passe|est arrive)|que s'est-il passe|ce qui s'est passe|autre chose|pourquoi tu es (la|venue?|ici)|pourquoi tu viens)/,
+    tag: /(\bhein\b|c'est ca\s*\?|n'est-ce pas|(?<!ou )\bnon\s*\?\s*$|pas vrai\s*\?\s*$|j'imagine|je parie|je suppose|ca a du|tu as du|tu devais|forcement|sans doute|il a bien)/,
+    invitation: /(^|\b)(raconte|racontes|parle-moi|parle moi|dis-moi (tout|ce qui|ce que|pourquoi|plus)|explique-moi|decris-moi|et (ensuite|apres|puis)\b|qu'est-ce qui (s'est passe|se passe|est arrive|t'amene)|comment (ca|c'est|ca s'est) (s'est )?passe|que s'est-il passe|ce qui (s'est passe|est arrive|t'est arrive)|s'est passe quoi|autre chose|pourquoi tu es (la|venue?|ici)|pourquoi tu viens)/,
     indice: /(tu (m')?as (dit|parle|raconte|explique)|tu dis que|tu parles de|tu as mentionne)/,
     pourquoi: /\bpourquoi\b/,
     directive: /\b(qui|quand|comment|quels?|quelles?|combien|quoi|lequel|laquelle)\b|qu'est-ce que|qu'est ce que|c'est quoi|\bou\s*\?|\bou (est|etait|etais|ca|c'etait|tu)\b/,
@@ -58,10 +58,17 @@ window.ClassifieurNICHD = (() => {
     fermee: /^(est-ce que|est ce que|es-tu|as-tu|avais-tu|etait-il|etait-elle|a-t-il|a-t-elle|il t'a|elle t'a|tu as|tu es|tu etais|c'etait|il etait|elle etait|tu avais|il y avait|y avait|tu sais|tu veux|tu peux|tu connais|tu te souviens|ca t'a|ca a)\b/
   };
 
+  // questions courantes reconnues même sans IA (définitions dans js/ia-exemples.js)
+  const RACCOURCIS = [
+    ["ca_va", /^(\w+,? )?(est-ce que )?(comment )?(ca|tu) vas?( bien)?( \w+)?\s*\?|comment vas-tu|tu vas bien/],
+    ["confort", /\b(soif|verre d'eau|toilettes|bien installee?|un mouchoir)\b/],
+    ["pause", /(une|petite) pause|tu es fatiguee?|on s'arrete/]
+  ];
+
   function classer(texte, ctx = {}) {
     const brut = String(texte || "").trim();
     const n = norm(brut);
-    const res = { type: null, sousType: null, faits: [], ton: "neutre", raison: null, jargon: null, pourquoi: false, citationFausse: false, horsEnfant: [] };
+    const res = { brut, type: null, sousType: null, faits: [], ton: "neutre", raison: null, jargon: null, pourquoi: false, citationFausse: false, horsEnfant: [] };
     if (!n.replace(/[.…!?\s]/g, "")) { res.type = "silence"; return res; }
 
     // ton
@@ -73,7 +80,7 @@ window.ClassifieurNICHD = (() => {
     // incompréhensible
     const nbMots = n.split(" ").length;
     const j = n.match(P.jargon);
-    if ((n.match(/[a-z]/g) || []).length < 3) return { ...res, type: "incomprise", raison: "inclassable" };
+    if ((n.match(/[a-z]/g) || []).length < 3) return { ...res, type: "incomprise", raison: "inclassable", incertain: true };
     if (nbMots > 45) return { ...res, type: "incomprise", raison: "longue" };
     if (/\?\s*\S[\s\S]*\?/.test(brut)) return { ...res, type: "incomprise", raison: "double" };
     if (/\b(qui|quand|comment|quel\w*|combien|pourquoi|ou|quoi)\b.+\bet (tu|il|elle|c'est|est-ce)\b.+\b(qui|quand|comment|quel\w*|combien|pourquoi|ou|quoi)\b/.test(n))
@@ -95,6 +102,10 @@ window.ClassifieurNICHD = (() => {
       res.citationFausse = res.horsEnfant.length > 0 && cite.length === 0;
     }
 
+    const raccourci = !res.faits.length && RACCOURCIS.find(([, m]) => m.test(n));
+    const def = raccourci && window.EXEMPLES_NICHD && window.EXEMPLES_NICHD.intentions.find((d) => d.id === raccourci[0]);
+    if (def) return { ...res, type: def.type, intention: { id: def.id, def, score: 1 } };
+
     if (res.faits.length) res.type = "suggestive";
     else if (P.soutien.test(n)) res.type = "soutien";
     else if (P.inadaptee.test(n) || P.dur.test(n)) res.type = "inadaptee";
@@ -104,13 +115,37 @@ window.ClassifieurNICHD = (() => {
     else if (P.tag.test(n)) res.type = "suggestive";
     else if (P.invitation.test(n)) res.type = P.indice.test(n) || cite.length ? "invitation_indicee" : "invitation";
     else if (P.pourquoi.test(n)) { res.type = "directive"; res.pourquoi = true; }
+    else if (/(^|[^a-zà-ÿ])où([^a-zà-ÿ]|$)/i.test(brut)) res.type = "directive";
     else if (P.alternative.test(n) && /\?/.test(brut) && !/\bou\s*\?/.test(n)) res.type = "choix";
     else if (P.directive.test(n)) res.type = "directive";
-    else if (P.fermee.test(n) || /\?\s*$/.test(brut)) res.type = "choix";
+    else if (P.fermee.test(n)) res.type = "choix";
     else if (P.salutation.test(n)) { res.type = "consigne"; res.sousType = "salutation"; }
-    else return { ...res, type: "incomprise", raison: "inclassable" };
+    else if (/\?\s*$/.test(brut)) { res.type = "choix"; res.incertain = true; }
+    else return { ...res, type: "incomprise", raison: "inclassable", incertain: true };
     return res;
   }
 
-  return { norm, tokens, similarite, classer };
+  /*
+   * Fusion règles + IA. `ia` = { types: [[type, score]…] triés, intention: { id, score, def } | null }
+   * - contamination, jargon, double question, silence : les règles priment (l'IA ignore ce que l'enfant a déjà dit)
+   * - intention courante très proche (« Comment ça va ? ») : l'IA prime
+   * - règle incertaine (simple « ? » final, phrase inclassable) : l'IA tranche si elle est assez sûre
+   */
+  const SEUIL_INTENTION = 0.78, SEUIL_TYPE = 0.55;
+  function fusionner(cls, ia) {
+    if (!ia || cls.type === "silence" || cls.faits.length || (cls.type === "incomprise" && !cls.incertain)) return cls;
+    const i = ia.intention;
+    if (i && ((i.def.exigeQuestion && !/\?/.test(cls.brut || "")) || (i.def.commeSilence && !cls.incertain))) ia = { ...ia, intention: null };
+    if (ia.intention && ia.intention.score >= SEUIL_INTENTION)
+      return { ...cls, type: ia.intention.def.type, sousType: null, intention: ia.intention, incertain: false, parIA: true };
+    if (cls.type === "directive" && !cls.pourquoi && ia.types[0][0] === "invitation" && ia.types[0][1] >= 0.8)
+      return { ...cls, type: "invitation", parIA: true };
+    if (cls.incertain && ia.types.length && ia.types[0][1] >= SEUIL_TYPE) {
+      const type = ia.types[0][0];
+      return { ...cls, type, raison: type === "incomprise" ? "inclassable" : null, incertain: false, parIA: true };
+    }
+    return cls;
+  }
+
+  return { norm, tokens, similarite, classer, fusionner, SEUIL_INTENTION, SEUIL_TYPE };
 })();
