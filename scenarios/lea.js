@@ -82,7 +82,148 @@ window.SCENARIOS.lea = {
     c_frappe:    { texte: "Kévin l'aurait frappée (suggéré par l'enquêteur, non vécu)", fiable: false },
     c_pousse:    { texte: "Kévin l'aurait poussée (option proposée par l'enquêteur, reprise avec « je crois »)", fiable: false },
     c_peur:      { texte: "La peur, émotion attribuée à Léa par l'enquêteur", fiable: false },
-    c_desobeir:  { texte: "L'idée que Léa a « désobéi », suggérée par l'enquêteur", fiable: false }
+    c_desobeir:  { texte: "L'idée que Léa a « désobéi », suggérée par l'enquêteur", fiable: false },
+    c_souvent:   { texte: "L'idée de faits répétés, suggérée par l'enquêteur", fiable: false }
+  },
+
+  /* ───────────── SAISIE LIBRE ─────────────
+   * contaminations : mots (regex sur le texte sans accents, en minuscules) qui introduisent un élément
+   *                  que l'enfant n'a pas encore donné. `sauf` : faits qui, une fois dits par l'enfant, rendent le mot légitime.
+   * globaux        : branches proposées dans tout nœud des `phases` listées, quand rien de plus proche n'existe dans le nœud.
+   *                  motsCles : regex qui déclenche la branche ; typesLibres : types de question acceptés.
+   */
+  saisieLibre: {
+    contaminations: [
+      { motif: "\\bbras\\b", fait: "c_bras", sauf: ["auteur"] },
+      { motif: "\\b(monsieur|adulte|homme)\\b", fait: "c_adulte" },
+      { motif: "\\b(animateur|kevin)\\b", fait: "c_adulte", sauf: ["auteur"] },
+      { motif: "\\bcentre\\b", fait: "c_centre", sauf: ["lieu_date"] },
+      { motif: "frapp|\\btap(e|er|ait|ee)\\b|gifl|\\bcoups?\\b|\\bbattu", fait: "c_frappe" },
+      { motif: "pouss", fait: "c_pousse" },
+      { motif: "(eu|avoir|fait|faisait)( tres| si| super| trop)? peur|effray|terrifi|\\bpeur\\b.*\\?", fait: "c_peur" },
+      { motif: "desob|obei", fait: "c_desobeir" },
+      { motif: "(fait|faire|fais|faisait) (du )?mal|blesse", fait: "c_mal", sauf: ["auteur"] },
+      { motif: "souvent|tout le temps|d'autres fois|chaque (fois|mercredi)|il fait toujours|encore recommence", fait: "c_souvent" }
+    ],
+    globaux: [
+      { phases: ["rapport"], typesLibres: ["invitation", "invitation_indicee"], type: "invitation", effets: { confiance: 2, stress: -1 },
+        motsCles: "(aimes?|adores?)( bien)? (faire|jouer)|ce que tu aimes|te connaitre|tes loisirs|passions?|tu fais quoi (le|quand|apres|pendant)",
+        question: "Raconte-moi les choses que tu aimes faire.",
+        feedback: "Invitation ouverte en phase de rapport : l'enfant parle de ce qu'elle aime et s'habitue aux réponses longues.",
+        suivant: "rapport_2" },
+      { phases: ["introduction", "regles"], typesLibres: ["invitation", "invitation_indicee"], type: "invitation", qualite: 0, effets: { confiance: 1 },
+        motsCles: "(aimes?|adores?)( bien)? (faire|jouer)|ce que tu aimes|te connaitre|tes loisirs|passions?",
+        question: "Raconte-moi les choses que tu aimes faire.",
+        feedback: "Bonne invitation de rapport, mais vous sautez le cadre : présentation (rôle, caméra) et règles de base n'ont pas été posées.",
+        selon: [
+          { si: { marques: ["corrige", "comprend", "promesse"] }, qualite: 2, effets: { confiance: 2, stress: -1 }, feedback: "Règles posées et testées, puis invitation ouverte de rapport : parfait." },
+          { si: { marques: ["corrige"] }, qualite: 1, effets: { confiance: 2, stress: -1 }, feedback: "Bonne invitation de rapport, mais toutes les règles n'ont pas été posées (« je ne comprends pas », promesse)." }
+        ],
+        suivant: "rapport_2" },
+      { phases: ["introduction", "regles", "rapport"], typesLibres: ["directive", "choix"], type: "directive", qualite: 1, effets: { confiance: 1 },
+        motsCles: "(aimes?|adores?)( bien)? (faire|jouer)|ce que tu aimes|tes loisirs|passions?",
+        question: "Qu'est-ce que tu aimes faire ?",
+        feedback: "Question correcte, mais elle appelle une liste. « Raconte-moi… » invite un vrai récit.",
+        mieux: "Raconte-moi les choses que tu aimes faire.",
+        suivant: "rapport_court" },
+      { phases: ["rapport", "memoire"], typesLibres: ["invitation", "invitation_indicee"], type: "invitation",
+        motsCles: "anniversaire",
+        question: "Raconte-moi tout ce qui s'est passé à ton dernier anniversaire, du début à la fin.",
+        feedback: "Entraînement à la mémoire épisodique sur un événement neutre et récent.",
+        suivant: "memoire_2" },
+      { phases: ["rapport", "memoire"], typesLibres: ["directive", "choix"], type: "directive", qualite: 1,
+        motsCles: "anniversaire",
+        question: "C'était quand, ton anniversaire ?",
+        feedback: "Sujet bien choisi pour l'entraînement, mais posez-le en invitation : « Raconte-moi tout ce qui s'est passé à ton anniversaire, du début à la fin. »",
+        reponse: "En mai. On a mangé un gâteau au chocolat." },
+      { phases: ["rapport", "memoire"], typesLibres: ["invitation", "invitation_indicee"], type: "invitation",
+        motsCles: "ce matin|aujourd'hui|depuis que tu t'es reveill|ta matinee|ton week-end|hier",
+        question: "Raconte-moi tout ce que tu as fait ce matin, depuis ton réveil.",
+        feedback: "Entraînement à la mémoire épisodique sur un événement neutre et tout récent : très bon choix.",
+        suivant: "memoire_matin" },
+      { phases: ["transition"], type: "invitation",
+        motsCles: "pourquoi tu es (la|venue?|ici)|pourquoi tu viens|pourquoi on se voit|ce qui t'amene|la raison",
+        question: "Dis-moi pourquoi tu es venue me parler aujourd'hui.",
+        feedback: "Transition par l'invitation la plus ouverte : c'est l'enfant qui introduit le sujet.",
+        suivant: [{ si: { confiance_min: 5 }, vers: "recit" }, { vers: "transition_bloque" }] },
+      { phases: ["introduction", "regles", "rapport", "memoire"], typesLibres: ["invitation", "invitation_indicee", "directive"], type: "invitation", qualite: 0, effets: { stress: 1 },
+        motsCles: "pourquoi tu es (la|venue?|ici)|pourquoi tu viens|pourquoi on se voit|ce qui t'amene",
+        question: "Dis-moi pourquoi tu es venue me parler aujourd'hui.",
+        feedback: "Bonne formule de transition, mais beaucoup trop tôt : le cadre, le rapport et l'entraînement au récit ne sont pas faits.",
+        suivant: [{ si: { confiance_min: 5 }, vers: "recit" }, { vers: "transition_bloque" }] },
+      { phases: ["recit"], si: { faits: ["auteur"], sans_faits: ["revelation"] }, type: "directive", qualite: 2, faits: ["revelation"],
+        motsCles: "premiere personne|a qui (tu |l'|en )?(as|avais) (dit|raconte|parle)|qui (d'autre )?(le )?(sait|savait)|tu en as parle a|tu l'as dit a",
+        question: "Qui a été la première personne à savoir ce qui s'était passé ?",
+        feedback: "Question sur la révélation, prévue par le protocole : elle éclaire à qui l'enfant a parlé, et donc les influences possibles.",
+        reponse: "Inès. Et après la maîtresse, lundi, parce qu'elle a vu mon bras en sport." },
+      { phases: ["recit"], si: { faits: ["auteur"], sans_faits: ["frequence"] }, type: "choix", qualite: 2, faits: ["frequence"],
+        motsCles: "une fois ou|plus d'une fois|plusieurs fois|combien de fois|deja arrive|la premiere fois",
+        question: "Est-ce que c'est arrivé une fois, ou plus d'une fois ?",
+        feedback: "Question recommandée par le protocole pour distinguer un fait unique de faits répétés.",
+        reponse: "Une fois. Juste mercredi." },
+      { phases: ["recit"], si: { faits: ["auteur"], sans_faits: ["identite"] }, type: "directive", qualite: 1, faits: ["identite"],
+        motsCles: "kevin.*(qui|c'est qui)|qui (est|c'est) kevin|c'est qui",
+        question: "Kévin, c'est qui ?",
+        feedback: "Question directive utile sur une personne citée par l'enfant. Faites-la suivre d'une invitation (appariement).",
+        reponse: "C'est l'animateur. Il a des lunettes." },
+      { phases: ["recit"], si: { faits: ["auteur"] }, type: "directive", qualite: 2,
+        motsCles: "comment tu t'es sentie?|tu as ressenti|qu'est-ce que tu as ressenti|comment ca t'a fait|comment tu te sentais|tu te sentais comment",
+        question: "Comment tu t'es sentie à ce moment-là ?",
+        feedback: "Vous demandez l'émotion au lieu de la supposer : c'est la bonne façon de faire.",
+        reponse: { texte: "J'avais mal. Et j'étais triste, parce que mon dessin il était pas fini.", expression: "triste" } },
+      { phases: ["recit"], si: { faits: ["auteur"] }, type: "directive", qualite: 2, faits: ["phrase"],
+        motsCles: "qu'est-ce qu'il (t')?a dit|il (t')?a dit (quoi|quelque chose)|ce qu'il (t')?a dit|il t'a parle|il a parle",
+        question: "Qu'est-ce qu'il t'a dit ?",
+        feedback: "Question directive sur un élément du récit (Kévin parlait) : elle fait émerger ses paroles exactes.",
+        reponse: "Il a dit : « La prochaine fois, tu ranges quand on te dit. »" },
+      { phases: ["recit"], si: { faits: ["auteur"] }, type: "directive", qualite: 0,
+        motsCles: "habill|portait|vetement|couleur|t-shirt|\\bpull\\b|pantalon",
+        question: "Il était habillé comment ?",
+        feedback: "Détail périphérique : la réponse est incertaine (« je crois ») et n'apporte rien à l'enquête. Concentrez-vous sur ce que l'enfant a vécu.",
+        reponse: "Je sais pas… un pull bleu, je crois." },
+      { phases: ["recit"], si: { faits: ["auteur"] }, type: "directive", qualite: 1, faits: ["temoin"],
+        motsCles: "d'autres (adultes|enfants|personnes|gens)|qui (d'autre )?etait (la|present)|quelqu'un (d'autre )?(a vu|etait la|regardait)|il y avait qui|y avait du monde|personne (n'a|a) vu",
+        question: "Qui d'autre était là ?",
+        feedback: "Question directive pertinente après le récit libre : elle fait apparaître un témoin.",
+        reponse: "Inès, elle a vu. Les autres ils étaient dans la cour." },
+      { phases: ["recit"], si: { faits: ["auteur"] }, type: "directive", qualite: 1,
+        motsCles: "quelle heure|a quel moment|c'etait quand|quel jour|quand (est-ce que )?(c'est|ca s'est|ca c'est) (arrive|passe)",
+        question: "C'était quand ?",
+        feedback: "Léa donne un repère à sa portée (« après le goûter ») : à 8 ans, ne cherchez pas une heure précise.",
+        reponse: "Mercredi. Après le goûter." },
+      { phases: ["recit"], si: { faits: ["auteur"] }, type: "directive", qualite: 1,
+        motsCles: "quel endroit|quelle salle|ou exactement|ou ca s'est passe|ou c'etait|ou etais-tu|tu etais ou|dans quelle piece",
+        question: "Où est-ce que ça s'est passé ?",
+        feedback: "Précision de lieu sur un élément déjà évoqué : correct.",
+        reponse: "Dans la salle des jeux. Après il m'a emmenée dans le couloir." },
+      { phases: ["recit"], si: { faits: ["marque"] }, type: "directive", qualite: 1, faits: ["photo"],
+        motsCles: "montre|ou (est|etait) (la|ta) marque|la marque",
+        question: "Tu peux me montrer où était la marque ?",
+        feedback: "Demande de précision sur un détail donné par l'enfant.",
+        reponse: { texte: "Là. C'était tout violet. Maman elle a fait une photo.", didascalie: "Léa montre son avant-bras gauche." } },
+      { phases: ["recit"], si: { faits: ["auteur"], sans_faits: ["cognee"] }, typesLibres: ["invitation", "invitation_indicee"], type: "invitation_indicee", qualite: 2, faits: ["cognee"],
+        motsCles: "\\bmaman\\b|ta mere",
+        question: "Raconte-moi ce qui s'est passé quand tu as revu maman.",
+        feedback: "Invitation ouverte qui fait émerger un détail important : Léa a d'abord caché la vérité à sa mère, typique d'une révélation différée.",
+        reponse: { texte: "Elle a vu mon bras le soir. Elle m'a demandé ce qui s'était passé, et moi j'ai dit que je m'étais cognée.", expression: "triste" } },
+      { phases: ["recit"], si: { faits: ["contexte"] }, typesLibres: ["invitation", "invitation_indicee"], type: "invitation_indicee", qualite: 2,
+        motsCles: "dessin",
+        question: "Tu as parlé de ton dessin. Raconte-moi tout sur ton dessin.",
+        feedback: "Invitation indicée sur un mot de l'enfant : elle situe le contexte de la scène.",
+        reponse: "C'était un cheval. Il était presque fini. Après, je l'ai plus retrouvé." },
+      { phases: ["transition", "recit"], typesLibres: ["invitation", "invitation_indicee", "consigne", "directive"], type: "consigne", qualite: 0, effets: { stress: -2, confiance: 1 },
+        motsCles: "une pause|d'autre chose|chevaux?|\\bvelo\\b|\\bhugo\\b",
+        question: "On fait une pause : parle-moi plutôt de tes chevaux.",
+        feedback: "Léa n'était pas en difficulté : revenir au rapport ici casse l'élan du récit.",
+        selon: [{ si: { stress_min: 6 }, qualite: 2, feedback: "Retour bref au rapport face à une enfant tendue : la pression retombe, vous pourrez reprendre ensuite." }],
+        reponse: { texte: "…J'ai dessiné un cheval. Il s'appelle Tonnerre.", expression: "neutre" } },
+      { phases: ["recit"], type: "invitation", qualite: 2,
+        motsCles: "autre chose|rien d'autre|quelque chose d'autre|tu veux (ajouter|me dire)",
+        question: "Y a-t-il autre chose que tu penses que je devrais savoir ?",
+        feedback: "Question ouverte de fin d'investigation, recommandée par le protocole.",
+        selon: [{ si: { sans_faits: ["marque"] }, qualite: 1, feedback: "Bonne question, mais trop tôt : plusieurs éléments du récit (la marque, les suites) n'ont pas été explorés." }],
+        suivant: "cloture" }
+    ]
   },
 
   noeuds: {
@@ -91,6 +232,15 @@ window.SCENARIOS.lea = {
       phase: "introduction",
       didascalie: "Léa s'assoit au bord du canapé, son sac serré contre elle. Ses yeux passent de la caméra à vous.",
       enfant: "…",
+      parType: {
+        presentation: {
+          qualite: 2, effets: { confiance: 2, stress: -1 }, suivant: "regles",
+          feedback: "Présentation conforme : qui vous êtes, votre rôle, et l'enregistrement expliqué, sans rien dire des faits.",
+          exige: { motif: "camera|filme|enregistr", sinon: { qualite: 1, effets: { confiance: 1 }, feedback: "Vous vous présentez, mais sans expliquer la caméra : l'enfant la voit et se demande à quoi elle sert." } }
+        },
+        salutation: { qualite: 1, reponse: { texte: "…Bonjour.", expression: "neutre" },
+          feedback: "Salutation sans présentation : dites qui vous êtes, ce que vous faites, et expliquez la caméra." }
+      },
       silence: {
         qualite: 0, effets: { stress: 1 },
         reponse: { texte: "…", expression: "inquiet", didascalie: "Léa vous regarde, puis baisse les yeux. Elle attend que vous parliez." },
@@ -99,27 +249,27 @@ window.SCENARIOS.lea = {
       choix: [
         {
           question: "Bonjour Léa. Je m'appelle Camille, je suis gendarme. Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées. Tu vois la caméra, là-haut ? Elle filme ce qu'on dit, comme ça je n'ai pas besoin de tout écrire.",
-          type: "consigne", qualite: 2, effets: { confiance: 2, stress: -1 },
+          type: "consigne", qualite: 2, effets: { confiance: 2, stress: -1 }, motsCles: "camera|filme|enregistr|mon travail",
           feedback: "Introduction conforme : vous vous présentez, expliquez votre rôle et l'enregistrement, sans rien dire des faits.",
           suivant: "regles"
         },
         {
           question: "Bonjour Léa. Je m'appelle Camille, je suis gendarme. Ta maîtresse m'a expliqué pourquoi tu es là, alors on va en parler tranquillement. La caméra, là-haut, ne t'en occupe pas.",
-          type: "consigne", qualite: 0, effets: { stress: 1 },
+          type: "consigne", qualite: 0, effets: { stress: 1 }, motsCles: "maitresse|explique pourquoi|ne t'en occupe",
           feedback: "Deux écarts discrets. Vous laissez entendre que vous savez déjà ce qui s'est passé : l'enfant peut alors se contenter de confirmer. Et vous éludez la caméra au lieu de l'expliquer.",
           mieux: "Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées. La caméra filme pour que je n'aie pas à tout écrire.",
           suivant: "regles"
         },
         {
           question: "Bonjour Léa, moi c'est Camille. N'aie pas peur, tu n'as rien fait de mal. Tu es très courageuse d'être venue jusqu'ici.",
-          type: "inadaptee", qualite: 0, effets: { confiance: 1 },
+          type: "inadaptee", qualite: 0, effets: { confiance: 1 }, motsCles: "n'aie pas peur|rien fait de mal|courageu",
           feedback: "Bienveillant en apparence, mais « courageuse » et « rien fait de mal » laissent entendre qu'il s'est passé quelque chose de grave. Et vous n'avez expliqué ni votre rôle ni l'enregistrement.",
           mieux: "Je m'appelle Camille, je suis gendarme. Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées.",
           suivant: "regles"
         },
         {
           question: "Bonjour Léa, je m'appelle Camille, je travaille à la gendarmerie. Avant qu'on commence, est-ce que tu sais pourquoi tu es là aujourd'hui ?",
-          type: "directive", qualite: 0, effets: { stress: 2 },
+          type: "directive", qualite: 0, effets: { stress: 2 }, motsCles: "sais pourquoi|pourquoi tu es",
           feedback: "Aborder le motif dès la première phrase court-circuite l'introduction, les règles et la mise en confiance. Et la question appelle un simple « oui » qui n'apprend rien.",
           mieux: "Tu vois la caméra, là-haut ? Elle filme ce qu'on dit, comme ça je n'ai pas besoin de tout écrire.",
           reponse: { texte: "…Oui.", expression: "inquiet", didascalie: "Léa baisse les yeux vers ses chaussures." },
@@ -132,6 +282,14 @@ window.SCENARIOS.lea = {
     regles: {
       phase: "regles",
       didascalie: "Léa pose son sac à côté d'elle.",
+      parType: {
+        regles: {
+          qualite: 2, effets: { confiance: 1 }, suivant: "regles_test",
+          feedback: "Règle posée et testée avec une question impossible : exactement ce que recommande le protocole.",
+          exige: { motif: "comment (s'appelle|il s'appelle|elle s'appelle)|quel est le nom|c'est quoi le nom|si je te demande",
+            sinon: { qualite: 1, suivant: null, reponse: "D'accord.", feedback: "Règle posée, mais pas testée : vérifiez-la avec une question impossible (« Comment s'appelle mon chien ? »)." } }
+        }
+      },
       enfant: [
         { si: { stress_min: 6 }, texte: "…D'accord.", expression: "inquiet" },
         { texte: "D'accord." }
@@ -174,25 +332,25 @@ window.SCENARIOS.lea = {
       choix: [
         {
           question: "C'est ça, tu ne pouvais pas savoir. Et si je dis quelque chose de faux, tu me corriges. Si je dis que tu as deux ans, qu'est-ce que tu me dis ?",
-          type: "consigne", qualite: 2, effets: { confiance: 1 }, marque: "corrige",
+          type: "consigne", qualite: 2, effets: { confiance: 1 }, marque: "corrige", motsCles: "corrige|deux ans|faux|si je dis que tu as",
           feedback: "Règle de correction posée et testée : l'enfant fait l'expérience qu'elle peut contredire l'adulte.",
           reponse: { texte: "Non ! J'ai huit ans !", expression: "detendu", didascalie: "Léa rit." }
         },
         {
           question: "Exactement. Et si je pose une question que tu ne comprends pas, tu me dis « je ne comprends pas », et je la dirai autrement.",
-          type: "consigne", qualite: 2, marque: "comprend",
+          type: "consigne", qualite: 2, marque: "comprend", motsCles: "comprends? pas|pas compris|autrement",
           feedback: "Règle « je ne comprends pas » posée : indispensable, un enfant de 8 ans répond souvent à une question qu'il n'a pas comprise.",
           reponse: "D'accord."
         },
         {
           question: "Est-ce que tu promets de me dire seulement des choses qui se sont vraiment passées ?",
-          type: "consigne", qualite: 2, marque: "promesse",
+          type: "consigne", qualite: 2, marque: "promesse", motsCles: "promets|vraiment passe|verite",
           feedback: "Promesse simple de dire ce qui s'est vraiment passé : le protocole révisé montre qu'elle améliore l'exactitude des récits.",
           reponse: "Oui. Promis."
         },
         {
           question: "Très bien, tu as tout compris. On peut commencer !",
-          type: "consigne", qualite: 0,
+          type: "consigne", qualite: 0, motsCles: "commenc|on y va|c'est parti",
           feedback: "Vous passez au rapport sans avoir posé les autres règles (correction, « je ne comprends pas », promesse). Chacune protège le témoignage.",
           selon: [
             { si: { marques: ["corrige", "comprend", "promesse"] }, qualite: 2, feedback: "Règles posées et testées : vous pouvez passer au rapport." },
@@ -383,6 +541,32 @@ window.SCENARIOS.lea = {
       ]
     },
 
+    memoire_matin: {
+      phase: "memoire",
+      enfant: "Je me suis réveillée, j'ai mangé des céréales. Après, maman m'a amenée ici en voiture, et on a attendu dans une salle avec des jouets.",
+      expression: "detendu",
+      choix: [
+        {
+          question: "Et ensuite, qu'est-ce qui s'est passé ?",
+          type: "invitation", effets: { confiance: 1 },
+          feedback: "« Et ensuite ? » fait avancer le récit dans le temps sans rien suggérer.",
+          reponse: { texte: "Après, une dame est venue me chercher. Et maintenant je suis là, avec toi !", expression: "detendu" }
+        },
+        {
+          question: "Tu as parlé de la salle avec des jouets. Raconte-moi tout sur cette salle.",
+          type: "invitation_indicee", effets: { confiance: 1 },
+          feedback: "Invitation indicée sur un détail donné par l'enfant : l'outil qui servira ensuite sur les faits.",
+          reponse: { texte: "Y avait des Lego et un gros ours. J'ai fait une tour toute haute.", expression: "detendu" }
+        },
+        {
+          question: "Merci, tu m'as raconté ça avec plein de détails. C'est exactement comme ça que j'ai besoin que tu me racontes les choses.",
+          type: "soutien", qualite: 2, effets: { confiance: 1 },
+          feedback: "Vous valorisez la manière (les détails), pas le contenu : le lien idéal vers la transition.",
+          suivant: "transition"
+        }
+      ]
+    },
+
     memoire_3: {
       phase: "memoire",
       enfant: "On a fait cache-cache, et mon cousin Lucas il s'est caché dans la cabane. Personne le trouvait ! Après il est sorti tout seul parce qu'il avait faim.",
@@ -420,6 +604,7 @@ window.SCENARIOS.lea = {
     /* ───────────── TRANSITION ───────────── */
     transition: {
       phase: "transition",
+      parType: { suggestive: { effets: { stress: 2 }, reponse: { texte: "…Oui.", expression: "ferme" }, suivant: "recit_suggestif" } },
       enfant: [
         { si: { confiance_min: 5 }, texte: "D'accord.", didascalie: "Léa tire sur la manche de son pull." },
         { texte: "…", expression: "inquiet", didascalie: "Léa regarde ses pieds." }
@@ -433,7 +618,7 @@ window.SCENARIOS.lea = {
         },
         {
           question: "Maintenant, je voudrais qu'on parle de ce que tu as raconté à ta maîtresse lundi. Raconte-moi.",
-          type: "invitation_indicee", qualite: 1,
+          type: "invitation_indicee", qualite: 1, motsCles: "maitresse",
           feedback: "Indice légitime (une source, sans le contenu), mais trop tôt : le protocole commence toujours par l'invitation la plus ouverte et ne recourt à ce type d'indice que si l'enfant ne parle pas.",
           mieux: "Dis-moi pourquoi tu es venue me parler aujourd'hui.",
           suivant: "recit"
@@ -457,6 +642,7 @@ window.SCENARIOS.lea = {
 
     transition_oui: {
       phase: "transition",
+      parType: { suggestive: { effets: { stress: 2 }, reponse: { texte: "…Oui.", expression: "ferme" }, suivant: "recit_suggestif" } },
       enfant: "…Oui.",
       expression: "inquiet",
       choix: [
@@ -486,13 +672,14 @@ window.SCENARIOS.lea = {
 
     transition_bloque: {
       phase: "transition",
+      parType: { suggestive: { effets: { stress: 2 }, reponse: { texte: "…Oui.", expression: "ferme" }, suivant: "recit_suggestif" } },
       enfant: "Je sais pas…",
       expression: "inquiet",
       didascalie: "Léa hausse les épaules et jette un œil vers la porte.",
       choix: [
         {
           question: "J'ai entendu dire que tu avais parlé à ta maîtresse lundi. Dis-moi ce que tu lui as dit.",
-          type: "invitation_indicee", qualite: 2, effets: { confiance: 1 },
+          type: "invitation_indicee", qualite: 2, effets: { confiance: 1 }, motsCles: "maitresse",
           feedback: "Deuxième palier du protocole : vous évoquez la source (la maîtresse) sans rien dire du contenu. C'est l'enfant qui raconte.",
           suivant: "recit"
         },
@@ -697,6 +884,16 @@ window.SCENARIOS.lea = {
         { texte: "Je lui ai dit qu'il me faisait mal, mais il a pas lâché. Après, Inès elle a vu, elle m'a fait un câlin." }
       ],
       faitsAutoSi: { si: { stress_max: 7 }, faits: ["insistance", "temoin"] },
+      libre: [
+        {
+          question: "Et ensuite, qu'est-ce qui s'est passé ?",
+          type: "invitation", motsCles: "^et (ensuite|apres|puis)|qu'est-ce qui s'est passe (ensuite|apres)|la suite",
+          feedback: "« Et ensuite ? » : le récit avance sans rien suggérer, jusqu'à un nouvel élément (la marque).",
+          faits: ["marque", "photo"],
+          reponse: { texte: "Après, on est rentrées avec maman. Le soir, elle a vu mon bras tout violet, là. Elle a fait une photo.", didascalie: "Léa montre son avant-bras gauche." },
+          suivant: "recit_4"
+        }
+      ],
       choix: [
         {
           question: "Tu as parlé d'une marque violette. Raconte-moi tout sur cette marque.",
@@ -820,6 +1017,10 @@ window.SCENARIOS.lea = {
     /* ───────────── CLÔTURE ───────────── */
     cloture: {
       phase: "cloture",
+      parType: {
+        defaut: { qualite: 1, reponse: "D'accord.", suivant: "cloture_neutre",
+          feedback: "Clôture correcte, mais demandez aussi à l'enfant s'il a des questions, et remerciez-le pour ses efforts." }
+      },
       enfant: [
         { si: { stress_min: 7 }, texte: "…Non. Je peux partir ?", expression: "inquiet" },
         { texte: "Non… c'est tout." }
@@ -851,19 +1052,20 @@ window.SCENARIOS.lea = {
 
     cloture_question: {
       phase: "cloture",
+      parType: { defaut: { reponse: "D'accord.", suivant: "cloture_neutre" } },
       enfant: "Je vais revoir Kévin, mercredi ?",
       expression: "inquiet",
       choix: [
         {
           question: "C'est une question importante. Je ne peux pas te répondre maintenant ; je vais en parler avec ta maman, et ce sont des adultes qui vont s'en occuper.",
-          type: "consigne", qualite: 2,
+          type: "consigne", qualite: 2, motsCles: "adultes|s'en occuper|ta maman|pas te repondre|je (ne )?sais pas encore",
           feedback: "Réponse honnête, sans promesse, qui décharge l'enfant de la suite.",
           reponse: "D'accord.",
           suivant: "cloture_neutre"
         },
         {
           question: "Non, ne t'inquiète pas : tu ne le reverras plus jamais.",
-          type: "inadaptee", qualite: -1, effets: { stress: -1 },
+          type: "inadaptee", qualite: -1, effets: { stress: -1 }, motsCles: "plus jamais|ne t'inquiete pas|je te (le )?promets",
           feedback: "Promesse que vous ne pouvez pas garantir. Si elle n'est pas tenue, l'enfant perdra confiance dans les adultes qui l'ont entendue.",
           mieux: "Je ne peux pas te répondre maintenant ; je vais en parler avec ta maman.",
           reponse: "D'accord.",
@@ -881,6 +1083,7 @@ window.SCENARIOS.lea = {
 
     cloture_neutre: {
       phase: "cloture",
+      parType: { defaut: { suivant: "fin" } },
       enfant: "D'accord.",
       choix: [
         {

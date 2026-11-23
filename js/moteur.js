@@ -37,9 +37,11 @@
     silence:            { nom: "Silence", court: "Silence", classe: "t-sil", ouverte: false, question: false, qualite: 1,
       conseil: "Une pause de quelques secondes après une réponse laisse l'enfant compléter. Si le silence devient pesant, relancez par une invitation." },
     inadaptee:          { nom: "Propos inadapté", court: "Inadapté", classe: "t-ina", ouverte: false, question: false, qualite: -1,
-      conseil: "Pas de promesse, de menace, de mise en doute, de jugement sur une personne, ni de remerciement pour le contenu." }
+      conseil: "Pas de promesse, de menace, de mise en doute, de jugement sur une personne, ni de remerciement pour le contenu." },
+    incomprise:         { nom: "Question incomprise", court: "Incomprise", classe: "t-inc", ouverte: false, question: true, qualite: -1,
+      conseil: "Une seule question à la fois, courte, avec des mots d'enfant. Évitez le vocabulaire juridique ou abstrait." }
   };
-  const QUALITES = { "2": "Conforme", "1": "Acceptable", "0": "Discutable", "-1": "À éviter", "-2": "Contaminant" };
+  const QUALITES = { "2": "Conforme", "1": "Acceptable", "0": "Discutable", "-1": "À éviter", "-2": "Grave" };
 
   const SOUTIENS_DEFAUT = [
     "Prends ton temps. Tu fais beaucoup d'efforts, et ça m'aide vraiment.",
@@ -51,7 +53,7 @@
     panique: ["{P} se recroqueville sur le canapé et ne vous regarde plus.", "{P} tremble un peu et serre les bras contre {lui}.", "{P} a les yeux qui brillent : {il} semble au bord des larmes."],
     agite:   ["{P} agite les jambes et se triture les doigts.", "{P} jette des coups d'œil vers la porte.", "{P} se tortille sur le canapé, mal à l'aise."],
     reserve: ["{P} reste sur la réserve, au bord du canapé.", "{P} parle du bout des lèvres, sans trop vous regarder.", "{P} vous observe, encore méfiant{e}."],
-    neutre:  ["{P} vous écoute, assis{e} sagement.", "{P} vous regarde, attentif{ve}.", "{P} attend la suite, plutôt calme."],
+    neutre:  ["{P} vous écoute, assis{e} sagement.", "{P} vous regarde, attenti{ve}.", "{P} attend la suite, plutôt calme."],
     detendu: ["{P} est détendu{e} et balance les jambes.", "{P} vous regarde quand {il} parle, plus à l'aise.", "{P} sourit facilement maintenant."]
   };
 
@@ -64,7 +66,8 @@
   let sc = null, cle = null;
   let etat, noeudId, journal, faits, marques, utilises, soutiens, phasesVues;
   let silencesSuite = 0, stressMax = 0, dernierTexte = null, retour = null, frappe = null;
-  const options = { feedback: true, jauges: true };
+  const options = { feedback: true, jauges: true, libre: false };
+  const modeLibre = () => options.libre && !!sc.saisieLibre;
 
   /* ---------- textes accordés (« {P} est détendu{e} ») ---------- */
   function tpl(s) {
@@ -134,14 +137,15 @@
     }
     delete r.selon;
     r.effets = { ...(r.effets || {}) };
+    const noteImposee = r.qualite != null;
     r.qualite = r.qualite ?? TYPES[r.type].qualite;
     r.feedback = tpl(r.feedback || "");
-    if (!specifique && !r.generique) ajusterSelonEtat(r);
+    if (!specifique && !r.generique) ajusterSelonEtat(r, noteImposee);
     return r;
   }
 
   // Règles génériques : le stress et la confiance modifient l'effet et la pertinence d'une intervention.
-  function ajusterSelonEtat(r) {
+  function ajusterSelonEtat(r, noteImposee) {
     const s = etat.stress;
     if (s >= 7 && (r.type === "directive" || r.type === "choix")) {
       r.effets.stress = (r.effets.stress || 0) + 1;
@@ -152,7 +156,8 @@
       r.effets.stress = (r.effets.stress || 0) + 1;
       r.feedback += " Sous stress, un enfant acquiesce encore plus facilement à ce qu'on lui suggère.";
     }
-    if (r.type === "soutien" && s <= 3) {
+    // la note imposée par le scénario prime (ex. valoriser la manière de raconter, pas une réassurance)
+    if (r.type === "soutien" && s <= 3 && !noteImposee) {
       r.qualite = Math.min(r.qualite, 0);
       r.feedback += tpl(" {P} était déjà détendu{e} : trop de réassurance peut laisser entendre que le sujet est grave.");
     }
@@ -259,15 +264,16 @@
     afficherScene(n, r);
   }
 
-  function choisir(c0, cleChoix) {
+  function choisir(c0, cleChoix, libre) {
     if (frappe) return;
     const n = sc.noeuds[noeudId];
     const c = resoudreChoix(c0);
+    if (libre) appliquerLibre(c, libre);
     const avant = { confiance: etat.confiance, stress: etat.stress };
     for (const k of ["confiance", "stress"]) etat[k] = borne(etat[k] + (c.effets[k] || 0));
     [].concat(c.faits || []).forEach(ajouterFait);
     [].concat(c.marque || []).forEach((m) => marques.add(m));
-    if (cleChoix != null) utilises.add(noeudId + "#" + cleChoix);
+    if (cleChoix != null) utilises.add(cleUtilisee(cleChoix));
     if (c.type === "soutien") soutiens.add(noeudId);
     silencesSuite = c.type === "silence" ? silencesSuite + 1 : 0;
     stressMax = Math.max(stressMax, etat.stress);
@@ -275,12 +281,180 @@
 
     retour = {
       noeud: noeudId, phase: n.phase, question: c.question ? tpl(c.question) : null, type: c.type,
-      qualite: c.qualite, feedback: c.feedback, mieux: c.mieux ? tpl(c.mieux) : null, enfant: null, didascalie: null, delta
+      qualite: c.qualite, feedback: c.feedback, mieux: c.mieux ? tpl(c.mieux) : null, enfant: null, didascalie: null, delta,
+      interpretation: libre ? interpretationTexte(c, libre) : null
     };
     journal.push(retour);
     majJauges(delta);
     reagir(delta);
     allerA(resoudreSuivant(c.suivant), variante(c.reponse), c);
+  }
+
+  /* ---------- saisie libre : interpréter une question tapée ---------- */
+  const CL = () => window.ClassifieurNICHD;
+
+  function scorer(c, texte, cls) {
+    let s = CL().similarite(texte, tpl(c.question || ""));
+    if (c.motsCles) s = new RegExp(c.motsCles).test(CL().norm(texte)) ? Math.max(s, 0.6) + 0.2 : s - 0.15;
+    if (c.type === cls.type) s += 0.12;
+    else if (cls.type === "suggestive" && c.type !== "suggestive") s -= 0.25;
+    return s;
+  }
+
+  // une proposition qui n'introduit pas les éléments contaminants tapés ne peut pas les « absorber »
+  const compatible = (c, cls) => c.type === "suggestive" || cls.faits.every((f) => [].concat(c.faits || []).includes(f));
+
+  function meilleur(candidats, texte, cls) {
+    let best = null;
+    for (const x of candidats) {
+      if (!verifie(x.c.si) || (x.c.typesLibres && !x.c.typesLibres.includes(cls.type))) continue;
+      const s = scorer(x.c, texte, cls);
+      if (!best || s > best.s) best = { ...x, s };
+    }
+    return best;
+  }
+
+  // Ordre : proposition du nœud quasi identique → proposition proche (nœud ou branches « libre »)
+  // → branche globale du scénario → réaction générique selon le type de question.
+  function interpreter(texte, n) {
+    const motsEnfant = new Set(journal.flatMap((j) => (j.enfant ? CL().tokens(j.enfant) : [])));
+    const cls = CL().classer(texte, { prenom: sc.prenom, contaminations: sc.saisieLibre.contaminations, faitsConnus: faits, motsEnfant });
+    const base = { texte, cls };
+    if (cls.type === "silence") return { c: choixSilence(n), cle: null, libre: base };
+
+    const locaux = [...n.choix.map((c, i) => ({ c, cle: i })), ...(n.libre || []).map((c, i) => ({ c, cle: "L" + i }))];
+    // une branche globale ne se déclenche que sur ses mots-clés
+    const globaux = (sc.saisieLibre.globaux || []).map((c, i) => ({ c, cle: "G" + i }))
+      .filter(({ c }) => (!c.phases || c.phases.includes(n.phase)) && new RegExp(c.motsCles).test(CL().norm(texte)));
+    const valable = (x, seuil) => x && x.s >= seuil && compatible(x.c, cls);
+
+    let m = meilleur(locaux, texte, cls);
+    if (!valable(m, 0.8)) {
+      if (cls.type === "incomprise") m = null;
+      else if (!valable(m, 0.5)) {
+        const g = meilleur(globaux, texte, cls);
+        m = valable(g, 0.5) ? g : null;
+      }
+    }
+    if (!m) return { c: generique(cls, n, texte), cle: null, libre: base };
+
+    const reste = m.c.suivant == null || m.c.suivant === noeudId;
+    if (reste && utilises.has(cleUtilisee(m.cle))) return { c: repetition(m.c), cle: null, libre: base };
+    let c = m.c;
+    if (c.exige && !new RegExp(c.exige.motif).test(CL().norm(texte))) c = { ...c, ...c.exige.sinon };
+    return { c, cle: m.cle, libre: { ...base, rapproche: tpl(m.c.question || "") } };
+  }
+
+  // les branches globales (G…) valent pour toute l'audition, les autres pour leur nœud
+  const cleUtilisee = (cle) => (String(cle).startsWith("G") ? cle : noeudId + "#" + cle);
+
+  function repetition(c) {
+    return {
+      type: c.type, qualite: -1, effets: { stress: 1, confiance: -1 },
+      reponse: { texte: "Je te l'ai déjà dit…", expression: "inquiet" },
+      feedback: "Question déjà posée : la répéter laisse croire à l'enfant que sa première réponse était fausse, et l'incite à la changer.",
+      mieux: "Tu as dit [ses mots]. Raconte-moi plus sur ça."
+    };
+  }
+
+  const INCOMPRIS = {
+    double: "Deux questions en une : l'enfant ne sait pas à laquelle répondre.",
+    longue: "Question trop longue : l'enfant décroche avant la fin.",
+    inclassable: "Formulation trop ambiguë : l'enfant ne comprend pas ce que vous attendez."
+  };
+
+  // Réaction quand aucune proposition du scénario ne correspond.
+  // Un nœud peut la remplacer avec parType: { <type ou sousType>: index de choix | objet, defaut: … }
+  function generique(cls, n, texte) {
+    const sortie = (types) => [...(n.libre || []), ...n.choix]
+      .find((c) => types.includes(c.type) && verifie(c.si) && c.suivant != null && c.suivant !== noeudId);
+    const acquiesce = etat.stress >= 5 || etat.confiance <= 3;
+    let g;
+    switch (cls.type) {
+      case "incomprise":
+        g = { qualite: -1, effets: { stress: 1 },
+          reponse: { texte: ["Je comprends pas…", "Hein ?", "Euh… c'est quoi ?"][journal.length % 3], expression: "inquiet", didascalie: "{P} fronce les sourcils, perdu{e}." },
+          feedback: cls.raison === "jargon"
+            ? `Vocabulaire d'adulte (« ${cls.jargon} ») : l'enfant ne comprend pas. Utilisez des mots simples, idéalement les siens.`
+            : INCOMPRIS[cls.raison] };
+        break;
+      case "invitation":
+      case "invitation_indicee": {
+        if (cls.citationFausse) {
+          g = { qualite: -1, effets: { confiance: -1 }, reponse: { texte: "J'ai pas dit ça…", expression: "inquiet" },
+            feedback: "Vous attribuez à {P} des mots qu'{il} n'a pas prononcés. Une invitation indicée reprend uniquement ses mots exacts." };
+          break;
+        }
+        const c = sortie(["invitation"]) || sortie(["invitation_indicee"]);
+        g = c ? { ...c } : { qualite: 1, reponse: { texte: "Euh… raconter quoi ?", expression: "neutre" },
+          feedback: "Invitation ouverte, mais trop vague à ce stade : l'enfant ne sait pas de quoi vous voulez qu'{il} parle." };
+        break;
+      }
+      case "directive":
+        g = cls.pourquoi
+          ? { qualite: 0, effets: { stress: 1, confiance: -1 }, reponse: { texte: "Je sais pas… parce que.", expression: "triste" },
+              feedback: "« Pourquoi » demande à l'enfant d'expliquer une intention ou un comportement : ça sonne comme un reproche, et {il} n'a pas de réponse." }
+          : { qualite: 0, reponse: "Je sais pas.",
+              feedback: "Question directive sur un point que {P} n'a pas évoqué : {il} n'a pas de réponse. Les questions directives portent sur ce que l'enfant a déjà dit." };
+        break;
+      case "choix":
+        g = acquiesce
+          ? { qualite: -1, reponse: { texte: "…Oui.", expression: "inquiet" },
+              feedback: "Question fermée : {P} répond « oui ». Souvenir réel ou envie de vous faire plaisir ? Impossible de le savoir. Transformez-la en invitation." }
+          : { qualite: 0, reponse: "Je sais pas.",
+              feedback: "Question fermée sur un point que l'enfant n'a pas abordé : la réponse n'apporte rien. Préférez une invitation ouverte." };
+        break;
+      case "suggestive":
+        g = { qualite: -2, effets: { stress: 1 },
+          reponse: acquiesce ? { texte: "…Oui.", expression: "inquiet" } : { texte: "…Je sais pas. Peut-être.", expression: "inquiet" },
+          feedback: cls.faits.length
+            ? "Vous introduisez des éléments que {P} n'a pas donnés : " + cls.faits.map((f) => "« " + sc.faits[f].texte + " »").join(", ") + ". Ce qu'{il} dira ensuite sur ces points est contaminé."
+            : "La formulation suggère la réponse attendue (« hein ? », « c'est ça ? », « tu as dû… ») : l'enfant acquiesce pour vous faire plaisir." };
+        break;
+      case "soutien":
+        g = soutiens.has(noeudId)
+          ? { qualite: 0, reponse: "…", feedback: "{P} a déjà été rassuré{e} : répéter la réassurance sans relancer fait tourner l'audition en rond. Relancez par une invitation." }
+          : { effets: { stress: -2, confiance: 1 }, didascalieApres: "{P} prend une grande inspiration. Ses épaules se relâchent un peu.",
+              feedback: "Propos de soutien non suggestif : vous reconnaissez l'effort et la difficulté, sans évoquer les faits ni rien promettre.",
+              selon: [{ si: { stress_min: 5 }, qualite: 2 }] };
+        break;
+      case "inadaptee":
+        g = { qualite: -1, effets: { stress: 1, confiance: -1 }, reponse: { texte: "…D'accord.", expression: "inquiet" }, feedback: TYPES.inadaptee.conseil };
+        break;
+      default:
+        g = { qualite: 1, reponse: "D'accord.", feedback: "Consigne comprise, mais elle ne fait pas avancer l'audition à ce stade." };
+    }
+    const pt = n.parType || {};
+    const sur = pt[cls.sousType] ?? pt[cls.type] ?? (cls.type !== "incomprise" ? pt.defaut : null);
+    if (sur != null) {
+      g = { ...g, ...(typeof sur === "number" ? n.choix[sur] : sur) };
+      if (g.exige && !new RegExp(g.exige.motif).test(CL().norm(texte))) g = { ...g, ...g.exige.sinon };
+    }
+    return { ...g, type: cls.type };
+  }
+
+  function appliquerLibre(c, libre) {
+    const { cls } = libre;
+    c.question = libre.texte;
+    if (cls.faits.length) c.faits = c.type === "suggestive" ? [...cls.faits] : [...new Set([...[].concat(c.faits || []), ...cls.faits])];
+    if (cls.ton === "dur") {
+      c.effets.stress = (c.effets.stress || 0) + 2;
+      c.effets.confiance = (c.effets.confiance || 0) - 1;
+      c.qualite = Math.max(-2, c.qualite - 1);
+      c.feedback += " Ton brusque : l'enfant se crispe. Une voix calme et des phrases posées l'aident à parler.";
+      c.didascalieApres = "{P} sursaute au ton de votre voix.";
+    } else if (cls.ton === "doux" && c.qualite >= 0 && etat.confiance < 6) {
+      c.effets.confiance = (c.effets.confiance || 0) + 1;
+      c.feedback += tpl(" Ton chaleureux : {P} se sent écouté{e}.");
+    }
+  }
+
+  function interpretationTexte(c, libre) {
+    if (libre.cls.type === "silence") return null;
+    let s = libre.rapproche ? `Rapprochée de la formulation « ${libre.rapproche} »` : "Aucune formulation proche dans le scénario : réaction générique selon le type de question";
+    if (libre.cls.ton === "dur") s += " · ton brusque";
+    else if (libre.cls.ton === "doux") s += " · ton chaleureux";
+    return s;
   }
 
   /* ---------- affichage de la scène ---------- */
@@ -385,6 +559,7 @@
       ret.className = "retour " + t.classe;
       ret.innerHTML = `
         <div class="retour-tete"><span class="badge">${t.nom}</span><span class="qualite q-${retour.qualite}">${QUALITES[retour.qualite]}</span></div>
+        ${retour.interpretation ? `<p class="interpretation">${echap(retour.interpretation)}</p>` : ""}
         <p>${echap(retour.feedback)}</p>
         ${retour.mieux && retour.qualite < 2 ? `<p class="mieux"><b>Plutôt :</b> « ${echap(retour.mieux)} »</p>` : ""}`;
       ret.hidden = false;
@@ -395,6 +570,28 @@
       zone.innerHTML = `<button class="btn principal" id="btn-debrief">Terminer l'audition et lire le débrief</button>`;
       $("#btn-debrief").onclick = afficherDebrief;
       $(".console").scrollTop = 0;
+      return;
+    }
+    if (modeLibre()) {
+      const p = echap(sc.prenom);
+      zone.innerHTML = `
+        <form class="libre" id="form-libre">
+          <textarea id="saisie" rows="2" maxlength="400" aria-label="Ce que vous dites à ${p}"
+            placeholder="Tapez ce que vous dites à ${p}… (Entrée pour parler, Maj+Entrée pour aller à la ligne)"></textarea>
+          <button class="btn principal" type="submit">Dire</button>
+        </form>`;
+      const ta = $("#saisie");
+      $("#form-libre").onsubmit = (e) => {
+        e.preventDefault();
+        const t = ta.value.trim();
+        if (!t) { ta.focus(); return; }
+        const r = interpreter(t, n);
+        choisir(r.c, r.cle, r.libre);
+      };
+      ta.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#form-libre").requestSubmit(); } };
+      $("#btn-silence").onclick = () => choisir(choixSilence(n), null);
+      $(".console").scrollTop = 0;
+      ta.focus({ preventScroll: true });
       return;
     }
     const restePlace = (c) => c.suivant == null || c.suivant === noeudId;
@@ -514,7 +711,8 @@
           <li class="${t.classe}">
             <div class="j-tete"><span class="j-num">#${k + 1}</span><span class="badge">${t.nom}</span>
               <span class="qualite q-${j.qualite}">${QUALITES[j.qualite]}</span><span class="j-phase">${nomPhase(j.phase)}</span></div>
-            <p class="q">${j.question ? "« " + echap(j.question) + " »" : "(Vous laissez un silence.)"}</p>
+            <p class="q">${j.question && j.type !== "silence" ? "« " + echap(j.question) + " »" : "(Vous laissez un silence.)"}</p>
+            ${j.interpretation ? `<p class="interp">${echap(j.interpretation)}</p>` : ""}
             ${j.enfant != null ? `<p class="r">${echap(sc.prenom)} : ${echap(j.enfant)}${j.didascalie ? " (" + echap(j.didascalie) + ")" : ""}</p>` : ""}
             ${d.confiance || d.stress ? `<div class="deltas">${d.confiance ? `<span>Confiance ${d.confiance > 0 ? "+" : ""}${d.confiance}</span>` : ""}${d.stress ? `<span>Stress ${d.stress > 0 ? "+" : ""}${d.stress}</span>` : ""}</div>` : ""}
             <p class="fb">${echap(j.feedback)}</p>
@@ -539,6 +737,7 @@
     if (contamines.length || sugg) r.push(["N'apporter aucune information", "Chaque élément introduit par vous (personne, lieu, geste, émotion, jugement) peut être repris par l'enfant et intégré à son souvenir. Pour la transition, commencez par « Dis-moi pourquoi tu es venu(e) me parler », puis n'évoquez qu'une source (« tu as parlé à… ») sans le contenu."]);
     if (stressMax >= 7 && nbSoutiens === 0) r.push(["Ralentir quand l'enfant se crispe", "Le stress est monté haut sans propos de soutien. Le protocole révisé recommande de reconnaître l'effort et la difficulté (« Tu m'aides beaucoup, prends ton temps »), voire de revenir brièvement au rapport, plutôt que d'enchaîner les questions."]);
     if (coups.some((j) => j.type === "inadaptee")) r.push(["Ni promesse, ni pression, ni doute", "Évitez « tu dois répondre », « tu es sûr(e) ? », « tu ne le reverras plus ». Ces propos poussent l'enfant à deviner, à changer sa réponse, ou créent des attentes que vous ne maîtrisez pas."]);
+    if (coups.filter((j) => j.type === "incomprise").length >= 2) r.push(["Des questions simples, une à la fois", "Plusieurs questions n'ont pas été comprises. Une seule question par phrase, courte, avec des mots d'enfant : pas de vocabulaire juridique (« agression », « circonstances »), pas de double question."]);
     if (nbSilences === 0) r.push(["Oser le silence", "Une pause de quelques secondes après une réponse, en restant attentif, invite souvent l'enfant à compléter spontanément son récit."]);
     else if (coups.filter((j) => j.type === "silence" && j.qualite <= 0).length >= 2) r.push(["Doser le silence", "Plusieurs silences sont tombés à plat : en introduction, face à un enfant stressé ou répétés, ils deviennent une pression. Le silence soutient le récit libre ; ailleurs, relancez."]);
     if (ratioFaits < 0.6) r.push(["Explorer chaque élément mentionné", "Des faits importants n'ont pas été recueillis. Utilisez les invitations indicées sur les détails donnés par l'enfant, la segmentation temporelle (« depuis [X] jusqu'à [Y] »), et demandez si c'est arrivé une fois ou plus d'une fois."]);
@@ -570,6 +769,9 @@
       `<div class="postit fiche" style="--r:-1deg"><b>${echap(s.titre)}</b>${echap(s.contexte)}</div>` +
       (d.postits || []).map((p, i) =>
         `<div class="postit" style="--c:${COULEURS[i % COULEURS.length]};--r:${ROTATIONS[i % ROTATIONS.length]}deg;animation-delay:${0.08 * (i + 1)}s">${echap(p)}</div>`).join("");
+    const dispo = !!s.saisieLibre;
+    $("#opt-libre").disabled = !dispo;
+    $("#libre-note").textContent = dispo ? "" : "(pas encore disponible pour ce dossier)";
   }
 
   function entrer() {
@@ -602,6 +804,7 @@
   rendreAccueil();
   $("#opt-feedback").onchange = (e) => (options.feedback = e.target.checked);
   $("#opt-jauges").onchange = (e) => { options.jauges = e.target.checked; if (etat) majJauges(); };
+  $("#opt-libre").onchange = (e) => (options.libre = e.target.checked);
   $("#btn-commencer").onclick = entrer;
   $("#btn-entrer").onclick = entrer;
   $("#btn-quitter").onclick = retourCouloir;
@@ -620,6 +823,7 @@
 
   document.addEventListener("keydown", (e) => {
     if (document.querySelector("dialog[open]") || $("#ecran-jeu").hidden) return;
+    if (e.target.closest("textarea, input")) return;
     if (frappe) {
       if (e.key === " " || e.key === "Enter") { e.preventDefault(); frappe.terminer(); }
       return;

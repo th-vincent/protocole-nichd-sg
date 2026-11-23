@@ -7,7 +7,8 @@ const dir = path.join(__dirname, "..", "scenarios");
 for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".js"))) require(path.join(dir, f));
 
 // À garder synchronisé avec TYPES et PHASES dans js/moteur.js
-const TYPES = ["invitation", "invitation_indicee", "soutien", "directive", "choix", "suggestive", "consigne", "silence", "inadaptee"];
+const TYPES = ["invitation", "invitation_indicee", "soutien", "directive", "choix", "suggestive", "consigne", "silence", "inadaptee", "incomprise"];
+const SOUS_TYPES = ["presentation", "salutation", "regles", "cloture", "defaut"];
 const PHASES = ["introduction", "regles", "rapport", "memoire", "transition", "recit", "cloture"];
 const CLES_SI = ["confiance_min", "confiance_max", "stress_min", "stress_max", "contamination_min", "contamination_max", "faits", "sans_faits", "marques", "sans_marques"];
 const EXPRESSIONS = ["neutre", "detendu", "inquiet", "triste", "ferme"];
@@ -39,12 +40,18 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
     });
   };
   // un choix (ou une réaction au silence) et ses variantes `selon`
-  const choix = (c, ou, id, estSilence) => {
-    if (!estSilence && !TYPES.includes(c.type)) err(`${ou} : type inconnu "${c.type}"`);
-    if (!estSilence && !c.question) err(`${ou} : question manquante`);
-    if (!c.feedback) err(`${ou} : feedback manquant`);
+  const regex = (m, ou) => { try { new RegExp(m); } catch (e) { err(`${ou} : expression régulière invalide (${e.message})`); } };
+  // partiel = parType / exige.sinon : complète une réaction générique, type et feedback facultatifs
+  const choix = (c, ou, id, estSilence, partiel) => {
+    if (!estSilence && !partiel && !TYPES.includes(c.type)) err(`${ou} : type inconnu "${c.type}"`);
+    if (partiel && c.type && !TYPES.includes(c.type)) err(`${ou} : type inconnu "${c.type}"`);
+    if (!estSilence && !partiel && !c.question) err(`${ou} : question manquante`);
+    if (!partiel && !c.feedback) err(`${ou} : feedback manquant`);
+    if (c.motsCles) regex(c.motsCles, ou);
+    (c.typesLibres || []).forEach((t) => { if (!TYPES.includes(t)) err(`${ou} : typesLibres inconnu "${t}"`); });
+    (c.phases || []).forEach((ph) => { if (!PHASES.includes(ph)) err(`${ou} : phase inconnue "${ph}"`); });
     if (c.qualite != null && ![-2, -1, 0, 1, 2].includes(c.qualite)) err(`${ou} : qualite doit valoir -2, -1, 0, 1 ou 2`);
-    if (!estSilence && c.suivant == null && c.reponse == null) avert(`${ou} : ni suivant ni reponse (l'enfant répétera sa réplique)`);
+    if (!estSilence && !partiel && c.suivant == null && c.reponse == null) avert(`${ou} : ni suivant ni reponse (l'enfant répétera sa réplique)`);
     si(c.si, ou);
     [].concat(c.faits || []).forEach((f) => fait(f, ou));
     [].concat(c.marque || []).forEach((m) => marquesPosees.add(m));
@@ -55,6 +62,7 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
       [].concat(v.faits || []).forEach((f) => fait(f, `${ou}.selon[${k}]`));
       if (v.suivant != null) t.push(...cibles(v.suivant, id));
     });
+    if (c.exige) { regex(c.exige.motif, ou + ".exige"); t.push(...choix(c.exige.sinon || {}, ou + ".exige.sinon", id, false, true)); }
     t.forEach((x) => { if (!N[x]) err(`${ou} : nœud suivant "${x}" introuvable`); });
     return t;
   };
@@ -71,7 +79,30 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
     if (!(n.choix || []).length) { err(`${id} : ni choix ni fin`); continue; }
     n.choix.forEach((c, i) => aretes[id].push(...choix(c, `${id}[${i}]`, id, false)));
     if (n.silence) aretes[id].push(...choix(n.silence, `${id}.silence`, id, true));
+    (n.libre || []).forEach((c, i) => aretes[id].push(...choix(c, `${id}.libre[${i}]`, id, false)));
+    for (const [k, v] of Object.entries(n.parType || {})) {
+      if (!TYPES.includes(k) && !SOUS_TYPES.includes(k)) err(`${id}.parType : clé inconnue "${k}"`);
+      if (typeof v === "number") { if (!n.choix[v]) err(`${id}.parType.${k} : choix n°${v} inexistant`); }
+      else aretes[id].push(...choix(v, `${id}.parType.${k}`, id, false, true));
+    }
     if (!aretes[id].some((x) => x !== id)) err(`${id} : aucun choix ne permet de quitter ce nœud`);
+  }
+  // saisie libre : lexique de contamination et branches globales
+  const sl = sc.saisieLibre;
+  if (sl) {
+    (sl.contaminations || []).forEach((c, i) => {
+      regex(c.motif, `contaminations[${i}]`);
+      fait(c.fait, `contaminations[${i}]`);
+      if (sc.faits[c.fait] && sc.faits[c.fait].fiable) err(`contaminations[${i}] : "${c.fait}" devrait être un fait fiable:false`);
+      (c.sauf || []).forEach((f) => fait(f, `contaminations[${i}].sauf`));
+    });
+    (sl.globaux || []).forEach((c, i) => {
+      if (!c.motsCles) err(`globaux[${i}] : motsCles manquant`);
+      for (const [id, n] of Object.entries(N)) {
+        if (n.fin || (c.phases && !c.phases.includes(n.phase))) continue;
+        aretes[id].push(...choix(c, `globaux[${i}]`, id, false).filter((x) => x !== id));
+      }
+    });
   }
   marquesLues.forEach(([m, ou]) => { if (!marquesPosees.has(m)) avert(`${ou} : la marque "${m}" n'est jamais posée`); });
 

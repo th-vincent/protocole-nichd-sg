@@ -22,7 +22,7 @@ TYPE    Lexend (titres), Atkinson Hyperlegible (texte), Caveat (post-it), Specia
   --sol-h:max(90px,15vh);
   --w-tr:340px;
   /* types d'intervention */
-  --t-ouv:#2f9e6b;--t-ind:#3f9c95;--t-sou:#4f7fd1;--t-dir:#c89416;--t-cho:#e07b39;--t-sug:#d93b3b;--t-con:#7a7f9a;--t-sil:#8a6fb0;--t-ina:#9b4dca;
+  --t-ouv:#2f9e6b;--t-ind:#3f9c95;--t-sou:#4f7fd1;--t-dir:#c89416;--t-cho:#e07b39;--t-sug:#d93b3b;--t-con:#7a7f9a;--t-sil:#8a6fb0;--t-ina:#9b4dca;--t-inc:#6b7280;
 }
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
@@ -189,7 +189,7 @@ kbd{font:600 12px Lexend,sans-serif;border:1px solid currentColor;border-radius:
 .q-2{color:var(--t-ouv)}.q-1{color:#7b8a2a}.q-0{color:var(--t-cho)}.q--1,.q--2{color:var(--t-sug)}
 .retour .mieux{font-size:14px;color:var(--doux)}
 .retour .mieux b{color:var(--ink)}
-.t-ouv{--c:var(--t-ouv)}.t-ind{--c:var(--t-ind)}.t-sou{--c:var(--t-sou)}.t-dir{--c:var(--t-dir)}.t-cho{--c:var(--t-cho)}.t-sug{--c:var(--t-sug)}.t-con{--c:var(--t-con)}.t-sil{--c:var(--t-sil)}.t-ina{--c:var(--t-ina)}
+.t-ouv{--c:var(--t-ouv)}.t-ind{--c:var(--t-ind)}.t-sou{--c:var(--t-sou)}.t-dir{--c:var(--t-dir)}.t-cho{--c:var(--t-cho)}.t-sug{--c:var(--t-sug)}.t-con{--c:var(--t-con)}.t-sil{--c:var(--t-sil)}.t-ina{--c:var(--t-ina)}.t-inc{--c:var(--t-inc)}
 
 .transcript{grid-area:tr;grid-row:2/-1;display:flex;flex-direction:column;margin:4px 14px 14px 0;background:var(--verre);color:#e6e9f7;border-radius:16px;backdrop-filter:blur(8px);overflow:hidden;border:1px solid rgba(255,255,255,.1)}
 .transcript-tete{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.1)}
@@ -203,6 +203,15 @@ kbd{font:600 12px Lexend,sans-serif;border:1px solid currentColor;border-radius:
 .transcription .enf b{color:#ffd88a}
 .transcription .sil{color:#a6a3c4;font-style:italic;border-color:var(--t-sil)}
 .transcription .did{color:#9ea6c9;font-style:italic;font-size:13px}
+
+/* saisie libre */
+.libre{grid-column:1/-1;display:flex;gap:10px;align-items:stretch}
+.libre textarea{flex:1;resize:vertical;min-height:58px;font:16px/1.45 "Atkinson Hyperlegible",system-ui,sans-serif;color:var(--ink);background:var(--carte);border:1.5px solid var(--ligne);border-radius:12px;padding:10px 14px}
+.libre textarea:focus{outline:none;border-color:var(--canard);box-shadow:0 0 0 3px rgba(47,127,134,.2)}
+.libre .btn{flex:none;align-self:flex-end}
+.retour .interpretation,.journal .interp{font-size:13.5px;color:var(--doux);font-style:italic}
+.fiche-reglages input:disabled+span{opacity:.5}
+.fiche-reglages small{font-size:13px;color:#8a6a52}
 
 /* ───────── l'enfant ───────── */
 #enfant .e,#enfant .bouche-parle,#enfant .larme,#enfant .bras,#enfant .peluche{display:none}
@@ -370,6 +379,7 @@ kbd{font:600 12px Lexend,sans-serif;border:1px solid currentColor;border-radius:
   .bulle::after{left:50%;bottom:-14px;border:9px solid transparent;border-top:14px solid #fff;border-bottom:0}
   .enfant-svg{top:auto;height:calc(100% - 92px)}
   .choix{font-size:15px}
+  .libre{flex-direction:column}.libre .btn{align-self:stretch}
   .barre{grid-template-columns:minmax(0,1fr) 28px}.barre .piste{grid-column:1/-1;grid-row:2}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

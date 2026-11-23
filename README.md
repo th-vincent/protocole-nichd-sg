@@ -15,6 +15,7 @@ Pour le mettre en ligne, poussez le repo sur GitHub puis activez **Settings → 
 index.html                    couloir (liège + porte), salle (décor, enfant SVG animé, console, transcription),
                               débrief, fiches « Protocole NICHD » et « Comment jouer »
 style.css                     styles et animations de l'enfant (expressions, agitation, réactions)
+js/classifieur.js             classe les questions tapées en saisie libre (règles, sans IA)
 js/moteur.js                  moteur générique : état, conditions, silence, soutien, frappe du texte, débrief
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
 scenarios/noah.js             Noah, 6 ans, témoin (conflit de loyauté, récit déjà influencé par les adultes)
@@ -62,6 +63,24 @@ Le moteur ajoute automatiquement :
 - **le silence** (touche 0). Il est utile en récit libre, pesant en introduction, s'il est répété ou si l'enfant est stressé ;
 - **une phrase de soutien** dès que le stress atteint 7 ;
 - **une pénalité** pour les questions directives ou fermées posées à un enfant très stressé, qui fait encore monter son stress. Il faut ralentir.
+
+## Saisie libre (Léa pour l'instant)
+
+Cochez « Saisie libre » sur la fiche du couloir : le gendarme tape ses questions au lieu de les choisir.
+`js/classifieur.js` analyse la phrase avec des règles simples, sans IA ni serveur. Il repère :
+- le type de question NICHD ;
+- les éléments contaminants (des mots du dossier que l'enfant n'a pas encore dits) ;
+- le ton (brusque ou chaleureux) ;
+- les questions incompréhensibles (double question, trop longue, jargon d'adulte, inclassable). L'enfant est alors perdu : « Je comprends pas… ».
+
+Le moteur cherche ensuite la réponse de l'enfant, dans cet ordre :
+1. une proposition du nœud très proche ou repérée par ses `motsCles` ;
+2. une branche réservée à la saisie libre (`libre` dans le nœud, ou `saisieLibre.globaux` pour tout le scénario) ;
+3. une réaction générique selon le type : « Je sais pas », « …Oui » pour une question fermée posée à un enfant stressé, « J'ai pas dit ça… » pour une fausse citation. Un nœud peut la remplacer avec `parType`.
+
+Une question déjà posée provoque « Je te l'ai déjà dit… ». Le débrief indique, pour chaque phrase, comment elle a été interprétée.
+
+Pour l'activer sur un autre scénario, ajoutez-y un bloc `saisieLibre`. Le format est documenté dans `scenarios/lea.js`.
 
 ## Travailler à 4
 
