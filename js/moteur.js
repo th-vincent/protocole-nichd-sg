@@ -91,7 +91,8 @@
       && (si.faits || []).every((f) => faits.has(f))
       && (si.sans_faits || []).every((f) => !faits.has(f))
       && (si.marques || []).every((m) => marques.has(m))
-      && (si.sans_marques || []).every((m) => !marques.has(m));
+      && (si.sans_marques || []).every((m) => !marques.has(m))
+      && (!si.noeuds || si.noeuds.includes(noeudId));
   }
 
   // Une réplique : "texte", { texte, expression, didascalie }, ou liste de variantes [{ si, texte, … }]
@@ -298,7 +299,7 @@
 
   // Seuils de rapprochement : similarité de sens (IA) ou recouvrement de mots (règles, si l'IA est indisponible)
   const SEUILS = {
-    ia:     { exact: 0.9, proche: 0.6, globalSansMots: 0.7, bonusType: 0.1, motsCles: 0.75, bonusMots: 0.1, maluMots: 0.05 },
+    ia:     { exact: 0.9, proche: 0.6, globalSansMots: 0.8, bonusType: 0.1, motsCles: 0.75, bonusMots: 0.1, maluMots: 0.05 },
     regles: { exact: 0.8, proche: 0.5, globalSansMots: 9, bonusType: 0.12, motsCles: 0.6, bonusMots: 0.2, maluMots: 0.15 }
   };
   const textesDe = (c) => [tpl(c.question || ""), ...(c.exemples || [])].filter(Boolean);
@@ -324,11 +325,20 @@
     && contaminants(c).every((f) => cls.faits.includes(f));
 
   // Toutes les réponses possibles de l'étape : propositions du nœud, branches « libre » du nœud,
-  // branches globales autorisées dans cette phase.
+  // options de la phase (saisieLibre.parPhase, ex. scenarios/lea.libre.js), branches globales de la phase.
   function candidatsDuNoeud(n, cls) {
+    // options de la phase suivante : l'enquêteur anticipe (ex. une question de rapport pendant les règles) ;
+    // elles mènent à l'étape d'entrée de cette phase (saisieLibre.entrees)
+    const ordre = PHASES.map((p) => p.cle), suivante = ordre[ordre.indexOf(n.phase) + 1];
+    const entree = (sc.saisieLibre.entrees || {})[suivante];
+    const anticipees = entree ? ((sc.saisieLibre.parPhase || {})[suivante] || [])
+      .map((c, i) => ({ c: c.suivant == null ? { ...c, suivant: entree } : c, cle: "P" + suivante + i, origine: "phase-suivante" }))
+      .filter(({ c }) => !(c.si && c.si.noeuds)) : [];
     return [
+      ...anticipees,
       ...n.choix.map((c, i) => ({ c, cle: i, origine: "noeud" })),
       ...(n.libre || []).map((c, i) => ({ c, cle: "L" + i, origine: "libre" })),
+      ...((sc.saisieLibre.parPhase || {})[n.phase] || []).map((c, i) => ({ c, cle: "P" + n.phase + i, origine: "phase" })),
       ...(sc.saisieLibre.globaux || []).map((c, i) => ({ c, cle: "G" + i, origine: "global" })).filter(({ c }) => !c.phases || c.phases.includes(n.phase))
     ].filter(({ c }) => verifie(c.si) && (!c.typesLibres || c.typesLibres.includes(cls.type)));
   }
@@ -394,8 +404,8 @@
     return { effets: {}, ...c };
   }
 
-  // les branches globales (G…) et intentions (I…) valent pour toute l'audition, les autres pour leur nœud
-  const cleUtilisee = (cle) => (/^[GI]/.test(String(cle)) ? cle : noeudId + "#" + cle);
+  // branches globales (G…), options de phase (P…) et intentions (I…) valent pour toute l'audition, les autres pour leur nœud
+  const cleUtilisee = (cle) => (/^[GIP]/.test(String(cle)) ? cle : noeudId + "#" + cle);
 
   function repetition(c) {
     return {

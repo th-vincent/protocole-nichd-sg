@@ -104,7 +104,7 @@ window.ClassifieurNICHD = (() => {
 
     const raccourci = !res.faits.length && RACCOURCIS.find(([, m]) => m.test(n));
     const def = raccourci && window.EXEMPLES_NICHD && window.EXEMPLES_NICHD.intentions.find((d) => d.id === raccourci[0]);
-    if (def) return { ...res, type: def.type, intention: { id: def.id, def, score: 1 } };
+    if (def && !(def.exigeQuestion && !/\?/.test(brut))) return { ...res, type: def.type, intention: { id: def.id, def, score: 1 } };
 
     if (res.faits.length) res.type = "suggestive";
     else if (P.soutien.test(n)) res.type = "soutien";
@@ -134,6 +134,8 @@ window.ClassifieurNICHD = (() => {
   const SEUIL_INTENTION = 0.78, SEUIL_TYPE = 0.55;
   function fusionner(cls, ia) {
     if (!ia || cls.type === "silence" || cls.faits.length || (cls.type === "incomprise" && !cls.incertain)) return cls;
+    // une question courante n'écrase pas une invitation, un soutien ou une suggestion reconnus avec certitude
+    if (!cls.incertain && ["invitation", "invitation_indicee", "soutien", "suggestive", "inadaptee"].includes(cls.type)) ia = { ...ia, intention: null };
     const i = ia.intention;
     if (i && ((i.def.exigeQuestion && !/\?/.test(cls.brut || "")) || (i.def.commeSilence && !cls.incertain))) ia = { ...ia, intention: null };
     if (ia.intention && ia.intention.score >= SEUIL_INTENTION)
@@ -149,7 +151,7 @@ window.ClassifieurNICHD = (() => {
 
   /*
    * Classe la phrase tapée parmi les réponses possibles de l'étape en cours.
-   * candidats : [{ c, cle, origine: "noeud" | "libre" | "global", sim, textes }]  (sim = similarité de sens ou de mots)
+   * candidats : [{ c, cle, origine: "noeud" | "libre" | "phase" | "global", sim, textes }]  (sim = similarité de sens ou de mots)
    * S         : seuils et bonus (voir SEUILS dans moteur.js)
    * Renvoie les candidats triés par score : sens + accord du type de question + mots-clés + prénoms.
    */
@@ -166,6 +168,8 @@ window.ClassifieurNICHD = (() => {
       // une branche globale (hors du nœud) ne vaut que si ses mots-clés ou le sens la désignent clairement
       // l'étape en cours passe avant les branches globales
       if (x.origine === "global") s = mots || x.sim >= S.globalSansMots ? s - 0.12 : -1;
+      else if (x.origine === "phase") s -= 0.03;   // options de la phase : juste derrière celles du nœud
+      else if (x.origine === "phase-suivante") s -= 0.08;   // l'enquêteur anticipe l'étape suivante
       const nc = (x.textes || []).flatMap(cites);
       if (nt.length && nc.length && !nt.some((nom) => nc.includes(nom))) s -= 0.35;
       if (x.c.type === cls.type) s += S.bonusType;

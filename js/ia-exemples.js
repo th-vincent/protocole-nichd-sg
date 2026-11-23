@@ -174,13 +174,13 @@ window.EXEMPLES_NICHD = {
       feedback: "Prendre des nouvelles met à l'aise, mais c'est une question fermée qui appelle une réponse courte. Ensuite, passez à une invitation ouverte."
     },
     {
-      id: "confort", type: "consigne", qualite: 1, effets: { confiance: 1, stress: -1 },
+      id: "confort", type: "consigne", qualite: 1, exigeQuestion: true, effets: { confiance: 1, stress: -1 },
       exemples: ["Tu veux un verre d'eau ?", "Tu as soif ?", "Tu as besoin d'aller aux toilettes ?", "Tu es bien installée ?", "Tu as chaud ?", "Tu veux enlever ton manteau ?", "Tu veux un mouchoir ?"],
       reponse: "Non, ça va. Merci.",
       feedback: "Veiller au confort de l'enfant est bienvenu, à condition de revenir ensuite au fil de l'audition."
     },
     {
-      id: "pause", type: "soutien", effets: { stress: -1 },
+      id: "pause", type: "soutien", exigeQuestion: true, effets: { stress: -1 },
       exemples: ["Tu veux une pause ?", "On fait une petite pause ?", "Tu veux qu'on s'arrête un moment ?", "Tu es fatiguée ?", "Tu veux souffler un peu ?"],
       reponse: [{ si: { stress_min: 6 }, texte: "…Oui. Un peu.", didascalie: "{P} souffle longuement." }, { texte: "Non, ça va." }],
       feedback: "Proposer une pause est bienvenu quand l'enfant est tendu{e} ; s'il va bien, cela coupe inutilement l'élan.",

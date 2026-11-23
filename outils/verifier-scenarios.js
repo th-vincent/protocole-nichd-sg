@@ -10,7 +10,7 @@ for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".js"))) require(pa
 const TYPES = ["invitation", "invitation_indicee", "soutien", "directive", "choix", "suggestive", "consigne", "silence", "inadaptee", "incomprise"];
 const SOUS_TYPES = ["presentation", "salutation", "regles", "cloture", "defaut"];
 const PHASES = ["introduction", "regles", "rapport", "memoire", "transition", "recit", "cloture"];
-const CLES_SI = ["confiance_min", "confiance_max", "stress_min", "stress_max", "contamination_min", "contamination_max", "faits", "sans_faits", "marques", "sans_marques"];
+const CLES_SI = ["noeuds", "confiance_min", "confiance_max", "stress_min", "stress_max", "contamination_min", "contamination_max", "faits", "sans_faits", "marques", "sans_marques"];
 const EXPRESSIONS = ["neutre", "detendu", "inquiet", "triste", "ferme"];
 let erreurs = 0, avertissements = 0;
 const err = (m) => { erreurs++; console.log("  ✗ " + m); };
@@ -30,6 +30,7 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
     Object.keys(c).filter((k) => !CLES_SI.includes(k)).forEach((k) => err(`${ou} : condition inconnue "${k}"`));
     [...(c.faits || []), ...(c.sans_faits || [])].forEach((f) => fait(f, ou));
     [...(c.marques || []), ...(c.sans_marques || [])].forEach((m) => marquesLues.push([m, ou]));
+    (c.noeuds || []).forEach((id) => { if (!N[id]) err(`${ou} : nœud "${id}" inconnu dans si.noeuds`); });
   };
   const replique = (r, ou) => {
     if (r == null || typeof r === "string") return;
@@ -97,6 +98,23 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
       if (sc.faits[c.fait] && sc.faits[c.fait].fiable) err(`contaminations[${i}] : "${c.fait}" devrait être un fait fiable:false`);
       (c.sauf || []).forEach((f) => fait(f, `contaminations[${i}].sauf`));
     });
+    for (const [phase, id] of Object.entries(sl.entrees || {})) {
+      if (!PHASES.includes(phase)) err(`entrees : phase inconnue "${phase}"`);
+      if (!N[id]) err(`entrees.${phase} : nœud "${id}" introuvable`);
+      else if (N[id].phase !== phase) err(`entrees.${phase} : le nœud "${id}" n'est pas de cette phase`);
+      // les nœuds de la phase précédente peuvent y mener
+      const prec = PHASES[PHASES.indexOf(phase) - 1];
+      Object.keys(N).filter((x) => N[x].phase === prec).forEach((x) => aretes[x].push(id));
+    }
+    for (const [phase, liste] of Object.entries(sl.parPhase || {})) {
+      if (!PHASES.includes(phase)) err(`parPhase : phase inconnue "${phase}"`);
+      liste.forEach((c, i) => {
+        const ids = Object.keys(N).filter((id) => N[id].phase === phase && !N[id].fin && (!c.si || !c.si.noeuds || c.si.noeuds.includes(id)));
+        if (!ids.length) err(`parPhase.${phase}[${i}] : aucun nœud de cette phase ne peut la proposer`);
+        ids.forEach((id) => aretes[id].push(...choix(c, `parPhase.${phase}[${i}]`, id, false).filter((x) => x !== id)));
+        if (!ids.length) choix(c, `parPhase.${phase}[${i}]`, null, false);
+      });
+    }
     (sl.globaux || []).forEach((c, i) => {
       if (!c.motsCles) err(`globaux[${i}] : motsCles manquant`);
       for (const [id, n] of Object.entries(N)) {

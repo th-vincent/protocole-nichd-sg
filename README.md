@@ -29,6 +29,7 @@ js/ia.js                      petite IA locale (sens des phrases), chargée depu
 js/ia-exemples.js             exemples annotés pour l'IA + questions courantes (« Comment ça va ? »)
 js/moteur.js                  moteur générique : état, conditions, silence, soutien, frappe du texte, débrief
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
+scenarios/lea.libre.js        Léa : ~230 options supplémentaires par phase, pour la saisie libre (mode IA) uniquement
 scenarios/noah.js             Noah, 6 ans, témoin (conflit de loyauté, récit déjà influencé par les adultes)
 outils/verifier-scenarios.js  vérifie liens, faits, types, conditions et nœuds inatteignables
 outils/lancer.py              lance le jeu (serveur local) et installe l'IA si besoin
@@ -89,9 +90,11 @@ Cochez « Saisie libre » sur la fiche du couloir : le gendarme tape ses questio
 Pour chaque phrase tapée, l'analyse se fait en trois temps :
 1. [js/classifieur.js](js/classifieur.js) applique ses règles. Il repère le type de question, les éléments contaminants (des mots du dossier que l'enfant n'a pas encore dits), le ton, et les questions incompréhensibles : double question, jargon, phrase trop longue. L'enfant est alors perdu : « Je comprends pas… ».
 2. L'IA compare la phrase aux exemples de [js/ia-exemples.js](js/ia-exemples.js). Elle reconnaît les questions courantes (« Comment ça va ? », « Tu veux de l'eau ? », « Tu veux une pause ? », « d'accord », « je vois ») et tranche les cas où les règles hésitent.
-3. Le moteur **classe la phrase parmi les réponses possibles de l'étape en cours** (`classerDansNoeud` dans `js/classifieur.js`). Les candidates sont :
+3. Le moteur **classe la phrase parmi les réponses possibles de l'étape en cours** (une quarantaine par étape pour Léa) (`classerDansNoeud` dans `js/classifieur.js`). Les candidates sont :
    - les propositions du nœud ;
    - ses branches `libre` ;
+   - la banque d'options de sa phase (`saisieLibre.parPhase`, dans [scenarios/lea.libre.js](scenarios/lea.libre.js)), éventuellement limitée à certaines étapes avec `si: { noeuds: [...] }` ;
+   - les options de la phase suivante, quand l'enquêteur anticipe : elles mènent à l'étape d'entrée de cette phase (`saisieLibre.entrees`) ;
    - les branches `saisieLibre.globaux` autorisées dans cette phase.
 
    Chacune reçoit un score qui combine le sens (IA), l'accord du type de question, les `motsCles` et les prénoms. L'étape en cours passe avant les branches globales, et un mot-clé explicite de l'étape l'emporte toujours. Une invitation ou un soutien sans correspondance prend la sortie de l'étape la plus proche en sens. La réaction générique selon le type n'intervient qu'en dernier recours.
