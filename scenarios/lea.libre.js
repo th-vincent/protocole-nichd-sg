@@ -14,6 +14,13 @@
   const ANNIV = { noeuds: ["memoire_2", "memoire_3"] }, MATIN = { noeuds: ["memoire_matin"] };
   const sl = window.SCENARIOS.lea.saisieLibre;
 
+  // Fiche personnage pour le petit LLM (vie quotidienne uniquement, JAMAIS les faits de l'enquête)
+  sl.personnage = "Ta vie : tu es en CE2. Tu vis avec maman et ton grand frère Hugo (10 ans). Mamie vient souvent. Ton cousin s'appelle Lucas. "
+    + "Tu adores dessiner des chevaux et tu as six figurines de chevaux (la plus belle s'appelle Tonnerre). Tu fais du vélo avec Hugo et de la danse le samedi. "
+    + "Ta chambre est violette. Tu n'as pas d'animal mais tu voudrais un chat. Tu veux être vétérinaire pour les chevaux.";
+  // Sujets de l'enquête que le LLM ne doit jamais aborder de lui-même (regex sur le texte sans accents)
+  sl.sensibles = "kevin|centre|animateur|\\bbras\\b|marque|serr|attrap|frapp|\\btap(e|ait)\\b|pouss|\\bmal\\b|fache|photo|mercredi|gronde";
+
   // étape d'arrivée quand l'enquêteur pose une question de la phase suivante
   sl.entrees = { regles: "regles", rapport: "rapport", transition: "transition", cloture: "cloture" };
 

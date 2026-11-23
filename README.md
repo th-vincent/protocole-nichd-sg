@@ -10,7 +10,9 @@ L'enfant réagit selon le type d'intervention et selon son état (confiance, str
 python3 outils/lancer.py
 ```
 
-Le lanceur installe l'IA de la saisie libre sur le PC au premier lancement (~140 Mo, une seule fois), démarre un petit serveur local et ouvre le navigateur. L'IA se charge alors depuis le disque dès l'ouverture de la page, en quelques secondes et sans connexion.
+Au premier lancement, le lanceur installe les IA de la saisie libre sur le PC, une seule fois : l'IA de compréhension (~140 Mo) et le petit LLM (llama.cpp + Qwen2.5 1,5B, ~1,1 Go). Il démarre ensuite le LLM et un petit serveur local, puis ouvre le navigateur.
+
+Le LLM a besoin d'environ 1,2 Go de mémoire libre : fermez les applications gourmandes, ou lancez `python3 outils/lancer.py --sans-llm` (les réponses de l'enfant sont alors celles écrites dans le scénario). L'IA se charge alors depuis le disque dès l'ouverture de la page, en quelques secondes et sans connexion.
 
 Il faut un serveur local, car un navigateur interdit à une page ouverte en double-clic de lire d'autres fichiers du disque. Pour installer l'IA sans lancer le jeu : `python3 outils/telecharger-ia.py`.
 
@@ -27,6 +29,7 @@ style.css                     styles et animations de l'enfant (expressions, agi
 js/classifieur.js             règles de classement des questions tapées (saisie libre)
 js/ia.js                      petite IA locale (sens des phrases), chargée depuis un CDN
 js/ia-exemples.js             exemples annotés pour l'IA + questions courantes (« Comment ça va ? »)
+js/llm.js                     petit LLM local : formule les réponses de l'enfant avec ses mots (garde-fou inclus)
 js/moteur.js                  moteur générique : état, conditions, silence, soutien, frappe du texte, débrief
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
 scenarios/lea.libre.js        Léa : ~230 options supplémentaires par phase, pour la saisie libre (mode IA) uniquement
@@ -109,6 +112,16 @@ Garde-fous :
 - ou dans le champ `exemples` d'une proposition ou d'une branche du scénario.
 
 Le débrief indique, pour chaque phrase, comment elle a été interprétée.
+
+### Le petit LLM : l'enfant répond avec ses mots
+
+En saisie libre, quand le LLM est lancé par `outils/lancer.py`, la réplique de l'enfant est **reformulée** pour répondre à la phrase exacte tapée (« Ton frangin il a quel âge ? » → « Hugo ? Il a dix ans. »). Les rôles sont partagés :
+
+- **le moteur** décide de ce que l'enfant dit : faits révélés, contamination, stress, note et retour NICHD. Rien ne change de ce côté ;
+- **le LLM** ([js/llm.js](js/llm.js)) décide seulement de la formulation. Dans les phases neutres (présentation, rapport, souvenirs, clôture), quand le scénario n'a pas de réponse prévue, il peut aussi improviser sur la vie quotidienne de l'enfant (`saisieLibre.personnage`) ;
+- **un garde-fou** rejette toute réplique qui ajoute des informations, perd l'essentiel de la réponse prévue (90 % des mots exigés pendant la transition et le récit) ou aborde un sujet de l'enquête (`saisieLibre.sensibles`). La réplique écrite du scénario est alors affichée. Même chose si le LLM est absent ou met plus de 20 secondes.
+
+Le débrief marque les répliques formulées par le LLM (✎ LLM). Pour changer de modèle, modifiez `LLM_FICHIER` et `LLM_URL` dans `outils/telecharger-ia.py`.
 
 ## Travailler à 4
 

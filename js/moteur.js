@@ -237,7 +237,7 @@
     faits.add(f);
   }
 
-  function allerA(id, override, depuis) {
+  async function allerA(id, override, depuis) {
     const n = sc.noeuds[id];
     if (!n) { console.error("Nœud introuvable :", id); return; }
     const meme = id === noeudId && !!depuis;
@@ -258,13 +258,42 @@
     r.texte = tpl(r.texte ?? "…");
     r.didascalie = tpl(r.didascalie || "");
     if (!r.expression) r.expression = expressionDepuisEtat();
+    await reformulerParLLM(r, n, depuis);
     dernierTexte = r.texte;
 
     const dernier = journal[journal.length - 1];
-    if (dernier && dernier.type && dernier.enfant == null) { dernier.enfant = r.texte; dernier.didascalie = r.didascalie; }
+    if (dernier && dernier.type && dernier.enfant == null) { dernier.enfant = r.texte; dernier.didascalie = r.didascalie; dernier.genere = !!r.genere; }
     else journal.push({ noeud: id, phase: n.phase, question: null, enfant: r.texte, didascalie: r.didascalie });
 
     afficherScene(n, r);
+  }
+
+  // Saisie libre + LLM prêt : l'enfant formule la réplique prévue avec ses mots, en réponse à la phrase tapée.
+  // Le moteur a déjà décidé du contenu (faits, stress, note) ; si le LLM échoue ou dérape, la réplique écrite reste.
+  // improvisation sur la vie quotidienne permise seulement là où rien ne touche aux faits ni aux tests de règles
+  const PHASES_NEUTRES = ["introduction", "rapport", "memoire", "cloture"];
+  async function reformulerParLLM(r, n, depuis) {
+    const L = depuis && depuis.__libre;
+    if (!L || !window.LLM || !window.LLM.pret() || depuis.type === "silence" || !r.texte.replace(/[.…\s]/g, "")) return;
+    const sl = sc.saisieLibre;
+    const improviser = L.generique && PHASES_NEUTRES.includes(n.phase)
+      && ["directive", "choix", "invitation", "invitation_indicee", "consigne"].includes(L.type) && r.texte.length < 30;
+    reflexion(true);
+    const t = await window.LLM.reformuler({
+      question: L.texte, contenu: r.texte, libre: improviser, stress: etat.stress,
+      // transition et récit : la réplique porte des faits, la reformulation doit presque tout garder
+      fidelite: ["transition", "recit"].includes(n.phase) ? 0.9 : 0.6,
+      prenom: sc.prenom, age: String(sc.age || "").split("·")[0].trim(), personnage: sl.personnage, sensibles: sl.sensibles
+    });
+    reflexion(false);
+    if (t) { r.texte = t; r.genere = true; }
+  }
+
+  function reflexion(oui) {
+    $(".console").classList.toggle("occupee", oui);
+    $("#attente").hidden = !oui;
+    $("#attente").innerHTML = oui ? `${echap(sc.prenom)} réfléchit… <span>(réponse formulée par le petit LLM)</span>` : "L'enfant parle… <span>(cliquez sur la bulle ou appuyez sur Espace pour afficher toute sa réponse)</span>";
+    if (oui) { $("#zone-choix").innerHTML = ""; $("#retour").hidden = true; $("#bulle-texte").textContent = "…"; }
   }
 
   function choisir(c0, cleChoix, libre) {
@@ -373,7 +402,7 @@
 
     if (!parMot && !(m && m.s >= S.exact)) {
       if (cls.intention && !(m && m.s >= S.proche && m.s >= cls.intention.score))
-        return { c: intention(cls.intention.def, n), cle: "I" + cls.intention.id, libre: base };
+        return { c: intention(cls.intention.def, n), cle: "I" + cls.intention.id, libre: { ...base, intention: true } };
       // incompréhensible « par construction » (jargon, double question, trop longue) : l'enfant est perdu ;
       // une phrase simplement inclassable peut encore correspondre à une réponse de l'étape
       if ((cls.type === "incomprise" && cls.raison !== "inclassable") || !(m && m.s >= S.proche)) m = null;
@@ -498,6 +527,7 @@
   function appliquerLibre(c, libre) {
     const { cls } = libre;
     c.question = libre.texte;
+    c.__libre = { texte: libre.texte, type: cls.type, generique: !libre.rapproche && !libre.intention };
     if (cls.faits.length) c.faits = c.type === "suggestive" ? [...cls.faits] : [...new Set([...[].concat(c.faits || []), ...cls.faits])];
     if (cls.ton === "dur") {
       c.effets.stress = (c.effets.stress || 0) + 2;
@@ -781,7 +811,7 @@
               <span class="qualite q-${j.qualite}">${QUALITES[j.qualite]}</span><span class="j-phase">${nomPhase(j.phase)}</span></div>
             <p class="q">${j.question && j.type !== "silence" ? "« " + echap(j.question) + " »" : "(Vous laissez un silence.)"}</p>
             ${j.interpretation ? `<p class="interp">${echap(j.interpretation)}</p>` : ""}
-            ${j.enfant != null ? `<p class="r">${echap(sc.prenom)} : ${echap(j.enfant)}${j.didascalie ? " (" + echap(j.didascalie) + ")" : ""}</p>` : ""}
+            ${j.enfant != null ? `<p class="r">${echap(sc.prenom)} : ${echap(j.enfant)}${j.didascalie ? " (" + echap(j.didascalie) + ")" : ""}${j.genere ? ' <span class="par-llm" title="Réplique formulée par le petit LLM à partir de la réponse prévue par le scénario">✎ LLM</span>' : ""}</p>` : ""}
             ${d.confiance || d.stress ? `<div class="deltas">${d.confiance ? `<span>Confiance ${d.confiance > 0 ? "+" : ""}${d.confiance}</span>` : ""}${d.stress ? `<span>Stress ${d.stress > 0 ? "+" : ""}${d.stress}</span>` : ""}</div>` : ""}
             <p class="fb">${echap(j.feedback)}</p>
             ${j.qualite < 2 ? `<p class="piste-nichd"><b>Ce que recommande le protocole</b>${j.mieux ? "Formulation possible : « " + echap(j.mieux) + " ». " : ""}${echap(t.conseil)}</p>` : ""}
@@ -884,14 +914,17 @@
     const t = etat === "chargement" ? (local ? "IA : chargement depuis ce PC…" : `IA : téléchargement du modèle${progression ? " " + progression + " %" : "…"} (une seule fois)`)
       : etat === "pret" ? `IA prête${local ? " (installée sur ce PC)" : ""} : vos phrases sont comprises par leur sens`
       : etat === "erreur" ? "IA indisponible (hors ligne ?) : classement par règles" : "";
+    const L = window.LLM;
+    const tl = !L ? "" : L.etat === "pret" ? " · LLM prêt : l'enfant répond avec ses mots" : L.etat === "chargement" ? " · LLM : démarrage…" : "";
     const el = $("#etat-ia");
-    el.textContent = t;
+    el.textContent = t + tl;
     el.dataset.etat = etat;
     el.hidden = !t || !modeLibreActif();
     if (window.SCENARIOS[cleCourante].saisieLibre)
       $("#libre-note").textContent = options.libre ? t : local && etat === "pret" ? "(IA installée sur ce PC : prête)" : "(utilise une petite IA locale, ~120 Mo téléchargés une fois)";
   }
   function modeLibreActif() { return options.libre && sc && !!sc.saisieLibre && !$("#ecran-jeu").hidden; }
+  if (window.LLM) { window.LLM.surChangement = afficherEtatIA; window.LLM.verifier(); }
   if (window.IA) {
     window.IA.surChangement = afficherEtatIA;
     // IA installée sur ce PC : on la charge dès l'ouverture, elle est prête avant d'entrer dans la salle
@@ -915,7 +948,7 @@
 
   document.addEventListener("keydown", (e) => {
     if (document.querySelector("dialog[open]") || $("#ecran-jeu").hidden) return;
-    if (e.target.closest("textarea, input")) return;
+    if (e.target.closest("textarea, input") || $(".console").classList.contains("occupee") && !frappe) return;
     if (frappe) {
       if (e.key === " " || e.key === "Enter") { e.preventDefault(); frappe.terminer(); }
       return;
