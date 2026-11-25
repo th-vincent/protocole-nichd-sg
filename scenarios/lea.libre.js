@@ -18,6 +18,31 @@
   sl.personnage = "Ta vie : tu es en CE2. Tu vis avec maman et ton grand frère Hugo (10 ans). Mamie vient souvent. Ton cousin s'appelle Lucas. "
     + "Tu adores dessiner des chevaux et tu as six figurines de chevaux (la plus belle s'appelle Tonnerre). Tu fais du vélo avec Hugo et de la danse le samedi. "
     + "Ta chambre est violette. Tu n'as pas d'animal mais tu voudrais un chat. Tu veux être vétérinaire pour les chevaux.";
+  // Ce que Léa a vécu, pour le LLM qui la joue (vérité terrain : il ne doit rien ajouter)
+  sl.histoire = "Mercredi, au centre de loisirs, c'était l'heure de ranger les jeux. Tu voulais finir ton dessin de cheval. "
+    + "Kévin, l'animateur (grand, cheveux noirs, il a des lunettes), a crié et t'a attrapée par le bras gauche pour t'emmener dans le couloir. "
+    + "Il serrait très fort. Tu lui as dit « aïe, tu me fais mal », il n'a pas lâché. Il t'a dit : « La prochaine fois, tu ranges quand on te dit. » "
+    + "Ta copine Inès a vu et t'a fait un câlin. C'est arrivé une seule fois. Il ne t'a pas frappée et ne t'a pas poussée. "
+    + "Le soir, tu avais une marque violette sur l'avant-bras (un gros bleu), qui t'a fait mal deux jours ; maman l'a vue et a pris une photo. "
+    + "Tu lui as d'abord dit que tu t'étais cognée, parce que tu avais peur que Kévin et toi vous vous fassiez gronder. "
+    + "Lundi, ta maîtresse a vu la marque en sport et tu lui as raconté. La première à savoir, c'est Inès.";
+  sl.consigneAvantFaits = "Ne parle pas de ce qui s'est passé mercredi.";
+  // Faits reconnus dans ce que Léa dit vraiment (regex sur le texte sans accents)
+  sl.detection = {
+    lieu_date: "mercredi|centre",
+    auteur: "(attrap|serr|tir|pris|tenu).{0,40}bras|bras.{0,40}(attrap|serr|tir)",
+    identite: "animateur|lunettes",
+    contexte: "ranger|rangeait|range les|finir mon dessin|voulais finir",
+    insistance: "(pas lache|lachait pas|voulait pas lacher|il a pas arrete|tu me fais mal|me faisait mal)",
+    temoin: "ines.{0,60}(vu|calin|console|regard)|(vu|calin|console).{0,60}ines",
+    marque: "marque|violet|un bleu|des bleus|gros bleu",
+    photo: "photo",
+    frequence: "une (seule )?fois|juste mercredi|premiere fois",
+    cognee: "cogne",
+    peur_gronder: "gronde",
+    phrase: "prochaine fois|tu ranges",
+    revelation: "maitresse.{0,60}(lundi|sport|vu)|lundi.{0,60}maitresse|(ines|inès).{0,30}(premiere|en premier|d'abord)"
+  };
   // Sujets de l'enquête que le LLM ne doit jamais aborder de lui-même (regex sur le texte sans accents)
   sl.sensibles = "kevin|centre|animateur|\\bbras\\b|marque|serr|attrap|frapp|\\btap(e|ait)\\b|pouss|\\bmal\\b|fache|photo|mercredi|gronde";
 

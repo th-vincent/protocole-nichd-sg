@@ -269,8 +269,11 @@
       r = { texte: override.texte, expression: override.expression, didascalie: override.didascalie };
     } else {
       // l'enfant ne livre les faits du nœud que s'il prononce vraiment la réplique du nœud
-      (n.faitsAuto || []).forEach(ajouterFait);
-      if (n.faitsAutoSi && verifie(n.faitsAutoSi.si)) n.faitsAutoSi.faits.forEach(ajouterFait);
+      // (avec le LLM, ce sont les faits détectés dans sa réponse libre qui comptent)
+      if (!generatif(depuis)) {
+        (n.faitsAuto || []).forEach(ajouterFait);
+        if (n.faitsAutoSi && verifie(n.faitsAutoSi.si)) n.faitsAutoSi.faits.forEach(ajouterFait);
+      }
       r = replique(n);
       if (meme && tpl(r.texte) === dernierTexte) r = { texte: "…" };
     }
@@ -278,7 +281,10 @@
     r.texte = tpl(r.texte ?? "…");
     r.didascalie = tpl(r.didascalie || "");
     if (!r.expression) r.expression = expressionDepuisEtat();
-    if (llmUtile(r, depuis)) await reformulerParLLM(r, n, depuis);   // le QCM reste strictement immédiat
+    if (generatif(depuis)) {   // le QCM reste strictement immédiat
+      if (r.texte.replace(/[.…\s]/g, "")) await jouerParLLM(r, n, depuis);
+      if (!AVANT_FAITS.includes(n.phase)) detecterFaits(r.texte);   // les faits se disent à partir de la transition
+    }
     dernierTexte = r.texte;
 
     const dernier = journal[journal.length - 1];
@@ -288,26 +294,57 @@
     afficherScene(n, r);
   }
 
-  // Saisie libre + LLM prêt : l'enfant formule la réplique prévue avec ses mots, en réponse à la phrase tapée.
-  // Le moteur a déjà décidé du contenu (faits, stress, note) ; si le LLM échoue ou dérape, la réplique écrite reste.
-  // improvisation sur la vie quotidienne permise seulement là où rien ne touche aux faits ni aux tests de règles
+  // Saisie libre + LLM prêt : l'enfant répond LIBREMENT (js/llm.js). Le moteur fournit la consigne du tour
+  // (état, réaction attendue, piste tirée de l'arbre si la question s'y rattache) et garde la pédagogie.
+  // Les faits recueillis sont ceux que l'enfant dit vraiment (saisieLibre.detection).
   const PHASES_NEUTRES = ["introduction", "rapport", "memoire", "cloture"];
-  const llmUtile = (r, depuis) => !!(depuis && depuis.__libre && window.LLM && window.LLM.pret()
-    && depuis.type !== "silence" && r.texte.replace(/[.…\s]/g, ""));
-  async function reformulerParLLM(r, n, depuis) {
-    const L = depuis.__libre;
-    const sl = sc.saisieLibre;
-    const improviser = L.generique && PHASES_NEUTRES.includes(n.phase)
-      && ["directive", "choix", "invitation", "invitation_indicee", "consigne"].includes(L.type) && r.texte.length < 30;
+  const AVANT_FAITS = ["introduction", "regles", "rapport", "memoire"];
+  const generatif = (depuis) => !!(depuis && depuis.__libre && window.LLM && window.LLM.pret() && depuis.type !== "silence");
+
+  async function jouerParLLM(r, n, depuis) {
+    const L = depuis.__libre, sl = sc.saisieLibre, consignes = [];
+    if (etat.stress >= 7) consignes.push("Tu es très mal à l'aise, tu parles tout bas, en très peu de mots.");
+    else if (etat.confiance <= 2) consignes.push("Tu es timide.");
+    else if (etat.confiance >= 6 && etat.stress <= 4) consignes.push("Tu es à l'aise.");
+    const devoile = phasesVues.has("recit");
+    if (L.type === "incomprise") consignes.push("Tu ne comprends pas.");
+    else if (L.type === "suggestive" && /^[….\s]*(oui|ouais)/i.test(r.texte)) consignes.push(tpl("Tu es intimidé{e} : tu dis oui même si ce n'est pas vrai."));
+    else if (L.generique && PHASES_NEUTRES.includes(n.phase) && ["directive", "choix", "invitation", "invitation_indicee", "consigne"].includes(L.type))
+      consignes.push("Réponds avec ta vie. Si tu ne sais pas, dis-le.");
+    // question de détail pendant le récit : sans rapprochement franc avec l'arbre, l'enfant répond d'après son
+    // histoire ; on lui rappelle les passages les plus proches de la question (un petit modèle ne les retrouve pas seul)
+    else if ((L.generique || !L.franc) && devoile && ["directive", "choix"].includes(L.type)) {
+      const souvenirs = await souvenirsPour(L.texte);
+      consignes.push(`Souviens-toi : « ${souvenirs} » Réponds à la question avec ça, en une phrase. N'invente rien.`);
+    }
+    else consignes.push(`Idée de réponse : « ${r.texte} »`);
+    const surPiste = consignes.some((x) => x.startsWith("Idée de réponse"));
+    if (AVANT_FAITS.includes(n.phase)) consignes.push(sl.consigneAvantFaits || "Ne parle pas de ce qui t'est arrivé.");
+    const historique = journal.filter((j) => j.question && j.enfant != null && j.type !== "silence").slice(-6).map((j) => [j.question, j.enfant]);
     reflexion(true);
-    const t = await window.LLM.reformuler({
-      question: L.texte, contenu: r.texte, libre: improviser, stress: etat.stress,
-      // transition et récit : la réplique porte des faits, la reformulation doit presque tout garder
-      fidelite: ["transition", "recit"].includes(n.phase) ? 0.9 : 0.6,
-      prenom: sc.prenom, age: String(sc.age || "").split("·")[0].trim(), personnage: sl.personnage, sensibles: sl.sensibles
+    const t = await window.LLM.jouer({
+      prenom: sc.prenom, age: String(sc.age || "").split("·")[0].trim(), personnage: sl.personnage, histoire: sl.histoire,
+      historique, question: L.texte, consigne: consignes.join(" "), piste: r.texte,
+      contaminations: sl.contaminations, sensibles: sl.sensibles, avantFaits: AVANT_FAITS.includes(n.phase),
+      fidelite: surPiste && ["transition", "recit"].includes(n.phase) ? 0.75 : 0
     });
     reflexion(false);
     if (t) { r.texte = t; r.genere = true; }
+  }
+
+  // les 2 phrases de l'histoire de l'enfant les plus proches de la question
+  async function souvenirsPour(question) {
+    const phrases = (sc.saisieLibre.histoire || "").match(/[^.!?]+[.!?]/g) || [];
+    if (!phrases.length) return "";
+    const v = iaPrete() ? (await window.IA.vecteurs([question]))[0] : null;
+    const sims = await similaritesTextes(phrases.map((p) => p.trim()), question, v);
+    return phrases.map((p, i) => [p.trim(), sims[i]]).sort((a, b) => b[1] - a[1]).slice(0, 2).map((x) => x[0]).join(" ");
+  }
+
+  function detecterFaits(texte) {
+    const n = CL().norm(texte);
+    for (const [f, motif] of Object.entries(sc.saisieLibre.detection || {}))
+      if (sc.faits[f] && sc.faits[f].fiable && new RegExp(motif).test(n)) ajouterFait(f);
   }
 
   function reflexion(oui) {
@@ -336,7 +373,8 @@
     }
     const avant = { confiance: etat.confiance, stress: etat.stress };
     for (const k of ["confiance", "stress"]) etat[k] = borne(etat[k] + (c.effets[k] || 0));
-    [].concat(c.faits || []).forEach(ajouterFait);
+    // avec le LLM, seuls les éléments contaminants viennent de la question ; les faits viennent de la réponse
+    [].concat(c.faits || []).filter((f) => !(generatif(c) && sc.faits[f] && sc.faits[f].fiable)).forEach(ajouterFait);
     [].concat(c.marque || []).forEach((m) => marques.add(m));
     if (cleChoix != null) utilises.add(cleUtilisee(cleChoix));
     if (c.type === "soutien") soutiens.add(noeudId);
@@ -556,7 +594,8 @@
     // (une invitation ouverte vaut pour n'importe quel sujet déjà en cours)
     const famille = { invitation: ["invitation", "invitation_indicee"], invitation_indicee: ["invitation", "invitation_indicee"], soutien: ["soutien"] }[cls.type];
     if (!m && famille && !cls.citationFausse && !(cls.type === "soutien" && soutiens.has(noeudId))) {
-      const sorties = cands.filter((x) => x.origine !== "global" && famille.includes(x.c.type) && x.c.suivant != null && x.c.suivant !== noeudId);
+      // uniquement les sorties propres à l'étape (pas les options anticipées de la phase suivante)
+      const sorties = cands.filter((x) => (x.origine === "noeud" || x.origine === "libre") && famille.includes(x.c.type) && x.c.suivant != null && x.c.suivant !== noeudId);
       if (sorties.length) m = sorties.reduce((a, x) => (x.sim > a.sim ? x : a));
     }
     if (!m) return { c: generique(cls, n, texte), cle: null, libre: base };
@@ -565,7 +604,7 @@
     if (reste && utilises.has(cleUtilisee(m.cle))) return { c: repetition(m.c), cle: null, libre: base };
     let c = m.c;
     if (c.exige && !new RegExp(c.exige.motif).test(CL().norm(texte))) c = { ...c, ...c.exige.sinon };
-    return { c, cle: m.cle, libre: { ...base, rapproche: tpl(m.c.question || "") } };
+    return { c, cle: m.cle, libre: { ...base, rapproche: tpl(m.c.question || ""), franc: m.s >= (v ? 0.85 : 0.8) } };
   }
 
   // petites questions courantes (« Comment ça va ? »), définies dans js/ia-exemples.js
@@ -672,7 +711,7 @@
   function appliquerLibre(c, libre) {
     const { cls } = libre;
     c.question = libre.texte;
-    c.__libre = { texte: libre.texte, type: cls.type, generique: !libre.rapproche && !libre.intention };
+    c.__libre = { texte: libre.texte, type: cls.type, generique: !libre.rapproche && !libre.intention, franc: !!libre.franc || !!libre.saut };
     if (cls.faits.length) c.faits = c.type === "suggestive" ? [...cls.faits] : [...new Set([...[].concat(c.faits || []), ...cls.faits])];
     if (cls.ton === "dur") {
       c.effets.stress = (c.effets.stress || 0) + 2;
@@ -1088,7 +1127,7 @@
       : etat === "pret" ? `IA prête${local ? " (installée sur ce PC)" : ""} : vos phrases sont comprises par leur sens`
       : etat === "erreur" ? "IA indisponible (hors ligne ?) : classement par règles" : "";
     const L = window.LLM;
-    const tl = !L ? "" : L.etat === "pret" ? " · LLM prêt : l'enfant répond avec ses mots" : L.etat === "chargement" ? " · LLM : démarrage…" : "";
+    const tl = !L ? "" : L.etat === "pret" ? " · LLM prêt : l'enfant répond librement" : L.etat === "chargement" ? " · LLM : démarrage…" : "";
     const el = $("#etat-ia");
     el.textContent = t + tl;
     el.dataset.etat = etat;

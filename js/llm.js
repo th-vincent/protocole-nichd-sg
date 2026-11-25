@@ -1,17 +1,16 @@
 /*
- * Petit LLM local (llama.cpp + Qwen2.5 1,5B, démarré par outils/lancer.py) : en SAISIE LIBRE, il formule
- * la réplique de l'enfant avec ses mots, en réponse à la phrase exacte tapée par l'enquêteur.
- *
- * Partage des rôles :
- *   - le MOTEUR décide de CE QUE l'enfant dit : faits révélés, contamination, stress, note et retour NICHD ;
- *   - le LLM décide seulement de COMMENT il le dit (reformulation fidèle).
- *   - Dans les phases neutres (présentation, règles, rapport, souvenirs, clôture), quand le scénario n'a pas
- *     de réponse prévue, il peut improviser sur la vie quotidienne de l'enfant (saisieLibre.personnage).
- * Garde-fou : une réplique qui ajoute des informations, perd l'essentiel de la réponse prévue ou touche aux
- * faits de l'enquête est rejetée, et l'on garde la réplique écrite du scénario. Idem si le LLM est lent ou absent.
+ * Petit LLM local (llama.cpp + Qwen2.5 1,5B, démarré par outils/lancer.py) : en SAISIE LIBRE, il JOUE l'enfant.
+ * Ses réponses sont générées librement à partir de :
+ *   - sa fiche (saisieLibre.personnage) et ce qu'il a vécu (saisieLibre.histoire) ;
+ *   - l'historique de la conversation ;
+ *   - une consigne du tour donnée par le moteur : état (stress, confiance), réaction attendue (« tu ne comprends
+ *     pas », « tu acquiesces »…) et, si la question se rattache à l'arbre, une piste d'inspiration (jamais recopiée).
+ * Le moteur garde la main sur la pédagogie : phases, note, retour NICHD, contaminations, faits détectés dans la réponse.
+ * Garde-fou : une réponse hors personnage (vouvoiement, consigne recopiée…) ou qui invente un élément de l'enquête
+ * est régénérée une fois, puis remplacée par la piste. Sans LLM, le jeu fonctionne comme avant.
  */
 window.LLM = (() => {
-  const DELAI = 20000;   // au-delà, on garde la réplique du scénario
+  const DELAI = 30000;
   const llm = { etat: "inconnu", modele: "", surChangement: null };
 
   const changer = (etat, modele) => {
@@ -34,74 +33,88 @@ window.LLM = (() => {
     } catch { changer("absent"); }
   };
 
-  const REGLES = "Tu réponds comme une enfant qui parle : une ou deux phrases courtes, des mots simples, sans vouvoyer. "
-    + "Tu redis le contenu donné avec tes mots, en répondant à la phrase de la gendarme. Tu n'ajoutes aucune information.";
+  const systeme = ({ prenom, age, personnage, histoire }) =>
+    `Tu joues ${prenom}, ${age}, entendu(e) par une gendarme dans une salle d'audition pour enfants. Tu es un vrai enfant, pas une IA.\n\n`
+    + `TA VIE : ${personnage || ""}\n\n`
+    + `CE QUI T'EST ARRIVÉ (tu ne le racontes que si on te demande pourquoi tu es là ou ce qui s'est passé) :\n${histoire || ""}\n\n`
+    + "COMMENT TU PARLES : comme un enfant de ton âge, à l'oral, une ou deux phrases courtes, des mots simples. "
+    + "Tu tutoies la gendarme. Tu n'inventes rien qui ne soit pas dans ta vie ou dans ce qui t'est arrivé. "
+    + "Si tu ne sais pas, tu dis « je sais pas ». Réponds seulement par ce que tu dis, sans guillemets.";
 
-  // Exemples de bonnes reformulations : un petit modèle imite bien mieux qu'il n'obéit.
+  // Exemples : un petit modèle imite bien mieux qu'il n'obéit (la consigne du tour est entre crochets)
   const EXEMPLES = [
-    ["La gendarme dit : « Il a quel âge, ton frère ? »\nCe que tu réponds : « Dix ans. Il est en CM2. »", "Hugo ? Il a dix ans. Il est en CM2."],
-    ["La gendarme dit : « Il criait ou il rigolait ? »\nCe que tu réponds : « En colère. »", "Il criait. Il était en colère."],
-    ["La gendarme dit : « Tu peux me relater les circonstances ? »\nCe que tu réponds : « Je comprends pas… »", "Je comprends pas ce que ça veut dire…"],
-    ["(Tu es très mal à l'aise, tu parles tout bas.)\nLa gendarme dit : « Raconte-moi tout. »\nCe que tu réponds : « Mercredi… au centre. »", "…Mercredi… Au centre."],
-    ["La gendarme dit : « Tu as un vélo de quelle couleur ? »\nCe que tu réponds : réponds avec ta vie de tous les jours, en une phrase. Si tu ne sais pas, dis-le.", "Il est bleu. Avec des autocollants."]
+    ["La gendarme : « Bonjour, je suis gendarme. »\n[Tu es timide.]", "…Bonjour."],
+    ["La gendarme : « Tu as des animaux ? »\n[Tu es à l'aise. Réponds avec ta vie.]", "Non… mais je voudrais un chat !"],
+    ["La gendarme : « Raconte-moi ce que tu aimes faire. »\n[Idée de réponse : « J'aime dessiner. Et le vélo. »]", "J'adore dessiner ! Et faire du vélo."],
+    ["La gendarme : « Quelle est la nature exacte des faits ? »\n[Tu ne comprends pas.]", "Je comprends pas ce que ça veut dire…"],
+    ["La gendarme : « Il t'a mordu, hein ? »\n[Tu es intimidé(e) : tu dis oui même si ce n'est pas vrai.]", "…Oui."]
   ];
 
-  const consigne = ({ question, contenu, libre, stress }) =>
-    (stress >= 7 ? "(Tu es très mal à l'aise, tu parles tout bas.)\n" : "")
-    + `La gendarme dit : « ${question} »\nCe que tu réponds : `
-    + (libre ? "réponds avec ta vie de tous les jours, en une phrase. Si tu ne sais pas, dis-le." : `« ${contenu} »`);
+  const nettoyer = (t) => {
+    let s = String(t || "").split("\n")[0].replace(/^\s*[\wÀ-ÿ'’-]{2,15}\s*:\s*/, "").replace(/^[«"“\s]+|[»"”\s]+$/g, "").trim();
+    const m = s.match(/^([\s\S]*[.!?…])/);   // couper proprement à la dernière fin de phrase
+    s = m ? m[1].trim() : s;
+    if ((s.match(/«/g) || []).length > (s.match(/»/g) || []).length) s += " »";   // guillemet resté ouvert
+    return s;
+  };
 
-  // Mots d'enfant toujours permis dans une reformulation
-  const PERMIS = "euh bah ben oui non ouais voilà alors après aussi très trop vraiment bien d'accord ah oh hein beaucoup peu sais comprends dire veux quoi fois";
-
-  function garde(sortie, { question, contenu, libre, personnage, sensibles, fidelite = 0.6 }) {
+  // Rejette ce qui sort du personnage ou invente un élément de l'enquête
+  function valable(sortie, { question, piste, contaminations, sensibles, avantFaits, fidelite = 0 }) {
     const C = window.ClassifieurNICHD;
-    if (!sortie || sortie.length > 280 || /\bvous\b|madame|monsieur|gendarme/i.test(sortie)) return false;
-    // un sujet de l'enquête (nom, lieu, geste…) absent du contenu prévu : refusé
-    if (sensibles) {
-      const re = new RegExp(sensibles);
-      if (re.test(C.norm(sortie)) && !re.test(C.norm(contenu))) return false;
+    if (!sortie || sortie.length < 1 || sortie.length > 320) return false;
+    if (/\bvous\b|\bvotre\b|madame|monsieur|gendarme\s*:|consigne|idée de réponse|en tant qu|intelligence artificielle|\bIA\b/i.test(sortie)) return false;
+    const n = C.norm(sortie), q = C.norm(question), p = C.norm(piste || "");
+    if (C.similarite(sortie, question) > 0.8 && sortie.length > 25) return false;   // recopie la question
+    // un élément de l'enquête (frappé, poussé…) qui n'est ni dans la question ni dans la piste : inventé
+    for (const c of contaminations || []) {
+      const re = new RegExp(c.motif);
+      if (re.test(n) && !re.test(q) && !re.test(p)) return false;
     }
-    const autorises = new Set([...C.tokens(contenu), ...C.tokens(question), ...C.tokens(PERMIS), ...(libre ? C.tokens(personnage || "") : [])]);
-    const mots = C.tokens(sortie);
-    const nouveaux = mots.filter((t) => t.length > 3 && !autorises.has(t));
-    if (nouveaux.length > (libre ? 3 : 1)) return false;
-    if (!libre) {
-      // l'essentiel du contenu prévu doit être conservé (sinon un fait « recueilli » ne serait pas dit)
-      const cles = C.tokens(contenu).filter((t) => t.length > 3);
-      if (cles.length && cles.filter((t) => mots.includes(t)).length / cles.length < fidelite) return false;
+    // récit appuyé sur une piste : l'essentiel doit être conservé (un petit modèle peut inverser un fait :
+    // « il me faisait mal » → « il m'amusait »)
+    if (fidelite) {
+      const cles = C.tokens(piste || "").filter((t) => t.length > 2), dits = C.tokens(sortie);
+      if (cles.length >= 3 && cles.filter((t) => dits.includes(t)).length / cles.length < fidelite) return false;
+    }
+    // avant la transition, l'enfant n'aborde pas les faits de lui-même
+    if (avantFaits && sensibles) {
+      const re = new RegExp(sensibles);
+      if (re.test(n) && !re.test(q) && !re.test(p)) return false;
     }
     return true;
   }
 
-  const nettoyer = (t) => String(t || "").split("\n")[0]
-    .replace(/^\s*(léa|noah|l'enfant|enfant)\s*:\s*/i, "").replace(/^[«"“\s]+|[»"”\s]+$/g, "").trim();
-
-  // Renvoie la réplique reformulée, ou null (on garde alors celle du scénario).
-  llm.reformuler = async (demande) => {
-    if (!llm.pret()) return null;
-    const { prenom, age, personnage } = demande;
-    const systeme = `Tu es ${prenom}, ${age}. Tu parles à une gendarme dans une salle d'audition pour enfants.\n${personnage || ""}\n\n${REGLES}`;
-    const messages = [{ role: "system", content: systeme }];
-    for (const [q, r] of EXEMPLES) messages.push({ role: "user", content: q }, { role: "assistant", content: r });
-    messages.push({ role: "user", content: consigne(demande) });
+  async function generer(messages, temperature) {
     const ctrl = new AbortController();
     const minuteur = setTimeout(() => ctrl.abort(), DELAI);
     try {
       const r = await fetch("/llm/chat", {
         method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
-        body: JSON.stringify({ messages, temperature: 0.2, max_tokens: 70, stop: ["\n\n"], chat_template_kwargs: { enable_thinking: false } })
+        body: JSON.stringify({ messages, temperature, max_tokens: 60, stop: ["\n", "La gendarme"], chat_template_kwargs: { enable_thinking: false } })
       });
       if (!r.ok) return null;
-      const texte = nettoyer((await r.json()).choices[0].message.content);
-      return garde(texte, demande) ? texte : null;
+      return nettoyer((await r.json()).choices[0].message.content);
     } catch {
       return null;
     } finally {
       clearTimeout(minuteur);
     }
+  }
+
+  // Fait parler l'enfant ; renvoie sa réplique, ou null (le moteur affiche alors la piste).
+  llm.jouer = async (d) => {
+    if (!llm.pret()) return null;
+    const messages = [{ role: "system", content: systeme(d) }];
+    for (const [q, r] of EXEMPLES) messages.push({ role: "user", content: q }, { role: "assistant", content: r });
+    for (const [q, r] of d.historique || []) messages.push({ role: "user", content: `La gendarme : « ${q} »` }, { role: "assistant", content: r });
+    messages.push({ role: "user", content: `La gendarme : « ${d.question} »\n[${d.consigne}]` });
+    for (const temperature of [0.4, 0.8]) {
+      const t = await generer(messages, temperature);
+      if (t && valable(t, d)) return t;
+    }
+    return null;
   };
 
-  llm.garde = garde;   // exposé pour les tests
+  llm.valable = valable;   // exposé pour les tests
   return llm;
 })();

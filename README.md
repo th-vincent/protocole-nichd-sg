@@ -126,15 +126,29 @@ Garde-fous :
 
 Le débrief indique, pour chaque phrase, comment elle a été interprétée.
 
-### Le petit LLM : l'enfant répond avec ses mots
+### Le petit LLM : l'enfant répond librement
 
-En saisie libre, quand le LLM est lancé par `outils/lancer.py`, la réplique de l'enfant est **reformulée** pour répondre à la phrase exacte tapée (« Ton frangin il a quel âge ? » → « Hugo ? Il a dix ans. »). Les rôles sont partagés :
+En saisie libre, quand le LLM est lancé par `outils/lancer.py`, **l'enfant n'a plus de réponses préenregistrées** : le LLM ([js/llm.js](js/llm.js), Qwen2.5 1,5B en local) joue l'enfant. Il reçoit :
 
-- **le moteur** décide de ce que l'enfant dit : faits révélés, contamination, stress, note et retour NICHD. Rien ne change de ce côté ;
-- **le LLM** ([js/llm.js](js/llm.js)) décide seulement de la formulation. Dans les phases neutres (présentation, rapport, souvenirs, clôture), quand le scénario n'a pas de réponse prévue, il peut aussi improviser sur la vie quotidienne de l'enfant (`saisieLibre.personnage`) ;
-- **un garde-fou** rejette toute réplique qui ajoute des informations, perd l'essentiel de la réponse prévue (90 % des mots exigés pendant la transition et le récit) ou aborde un sujet de l'enquête (`saisieLibre.sensibles`). La réplique écrite du scénario est alors affichée. Même chose si le LLM est absent ou met plus de 20 secondes.
+- sa fiche (`saisieLibre.personnage`) et ce qu'il a vécu (`saisieLibre.histoire`, la vérité terrain) ;
+- l'historique de la conversation ;
+- une **consigne du tour** donnée par le moteur :
+  - son état (« tu es timide », « tu es très mal à l'aise ») ;
+  - sa réaction (« tu ne comprends pas », « tu es intimidée : tu dis oui » face à une suggestion) ;
+  - « ne parle pas encore de ce qui s'est passé » avant la transition ;
+  - et, si la question se rattache à l'arbre, une **piste d'inspiration**, jamais recopiée telle quelle.
 
-Le débrief marque les répliques formulées par le LLM (✎ LLM). Pour changer de modèle, modifiez `LLM_FICHIER` et `LLM_URL` dans `outils/telecharger-ia.py`.
+Pour une question de détail sans équivalent dans l'arbre, le moteur lui rappelle les phrases de son histoire les plus proches de la question, et l'enfant répond à partir de là.
+
+**L'arbre reste le cadre pédagogique** : phases, saut d'étapes, note, retour NICHD, contaminations détectées dans la question. **Les faits recueillis sont ceux que l'enfant dit vraiment**, repérés dans sa réponse (`saisieLibre.detection`).
+
+**Garde-fous** : une réponse est régénérée une fois, puis remplacée par la piste, si elle :
+- sort du personnage (vouvoiement, consigne recopiée…) ;
+- invente un élément de l'enquête absent de la question (« il m'a frappée ») ;
+- aborde les faits trop tôt ;
+- ou, pendant le récit, s'écarte de la piste au point d'en perdre l'essentiel (un petit modèle peut inverser un fait).
+
+Comptez 3 à 10 s par réponse sur un PC modeste. Le débrief marque les réponses générées (✎ LLM).
 
 ## Indices pour l'enquêteur
 
