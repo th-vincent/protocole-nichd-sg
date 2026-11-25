@@ -3,11 +3,13 @@
  * Ses réponses sont générées librement à partir de :
  *   - sa fiche (saisieLibre.personnage) et ce qu'il a vécu (saisieLibre.histoire) ;
  *   - l'historique de la conversation ;
- *   - une consigne du tour donnée par le moteur : état (stress, confiance), réaction attendue (« tu ne comprends
- *     pas », « tu acquiesces »…) et, si la question se rattache à l'arbre, une piste d'inspiration (jamais recopiée).
+ *   - une consigne du tour donnée par le moteur : état (stress, confiance), comportement voulu par l'arbre
+ *     (« tu ne comprends pas », « tu acquiesces », « tu n'oses pas en parler »…) et les passages de son histoire
+ *     utiles pour répondre. Aucune formulation du scénario ne lui est imposée.
  * Le moteur garde la main sur la pédagogie : phases, note, retour NICHD, contaminations, faits détectés dans la réponse.
- * Garde-fou : une réponse hors personnage (vouvoiement, consigne recopiée…) ou qui invente un élément de l'enquête
- * est régénérée une fois, puis remplacée par la piste. Sans LLM, le jeu fonctionne comme avant.
+ * Garde-fou : une réponse hors personnage (vouvoiement, consigne recopiée…), qui affirme un fait faux non suggéré
+ * ou qui aborde les faits trop tôt est régénérée une fois, puis remplacée par la réplique du scénario (secours).
+ * Sans LLM, le jeu fonctionne comme avant.
  */
 window.LLM = (() => {
   const DELAI = 30000;
@@ -33,10 +35,11 @@ window.LLM = (() => {
     } catch { changer("absent"); }
   };
 
-  const systeme = ({ prenom, age, personnage, histoire }) =>
-    `Tu joues ${prenom}, ${age}, entendu(e) par une gendarme dans une salle d'audition pour enfants. Tu es un vrai enfant, pas une IA.\n\n`
+  const systeme = ({ prenom, age, feminin, personnage, histoire }) =>
+    `Tu joues ${prenom}, ${feminin ? "une petite fille" : "un petit garçon"} de ${age}, ${feminin ? "entendue" : "entendu"} par une gendarme dans une salle d'audition pour enfants. `
+    + `Tu es ${feminin ? "une vraie enfant" : "un vrai enfant"}, pas une IA.\n\n`
     + `TA VIE : ${personnage || ""}\n\n`
-    + `CE QUI T'EST ARRIVÉ (tu ne le racontes que si on te demande pourquoi tu es là ou ce qui s'est passé) :\n${histoire || ""}\n\n`
+    + `CE QUI T'EST ARRIVÉ — tes souvenirs (tu ne les racontes que si on te demande pourquoi tu es là ou ce qui s'est passé) :\n${histoire || ""}\n\n`
     + "COMMENT TU PARLES : comme un enfant de ton âge, à l'oral, une ou deux phrases courtes, des mots simples. "
     + "Tu tutoies la gendarme. Tu n'inventes rien qui ne soit pas dans ta vie ou dans ce qui t'est arrivé. "
     + "Si tu ne sais pas, tu dis « je sais pas ». Réponds seulement par ce que tu dis, sans guillemets.";
@@ -45,30 +48,31 @@ window.LLM = (() => {
   const EXEMPLES = [
     ["La gendarme : « Bonjour, je suis gendarme. »\n[Tu es timide.]", "…Bonjour."],
     ["La gendarme : « Tu as des animaux ? »\n[Tu es à l'aise. Réponds avec ta vie.]", "Non… mais je voudrais un chat !"],
-    ["La gendarme : « Raconte-moi ce que tu aimes faire. »\n[Idée de réponse : « J'aime dessiner. Et le vélo. »]", "J'adore dessiner ! Et faire du vélo."],
+    ["La gendarme : « Il s'appelle comment, le chat de ta voisine ? »\n[Tes souvenirs : « Le chat de la voisine s'appelle Mimi, il est tout gris. » Réponds avec tes mots.]", "Mimi ! Il est tout gris."],
     ["La gendarme : « Quelle est la nature exacte des faits ? »\n[Tu ne comprends pas.]", "Je comprends pas ce que ça veut dire…"],
-    ["La gendarme : « Il t'a mordu, hein ? »\n[Tu es intimidé(e) : tu dis oui même si ce n'est pas vrai.]", "…Oui."]
+    ["La gendarme : « Il t'a mordu, hein ? »\n[Tu es intimidé : tu dis oui même si ce n'est pas vrai.]", "…Oui."]
   ];
 
   const nettoyer = (t) => {
     let s = String(t || "").split("\n")[0].replace(/^\s*[\wÀ-ÿ'’-]{2,15}\s*:\s*/, "").replace(/^[«"“\s]+|[»"”\s]+$/g, "").trim();
     const m = s.match(/^([\s\S]*[.!?…])/);   // couper proprement à la dernière fin de phrase
     s = m ? m[1].trim() : s;
+    s = (s.match(/[^.!?…]+[.!?…]+/g) || [s]).slice(0, 2).join(" ").trim();   // deux phrases au plus
     if ((s.match(/«/g) || []).length > (s.match(/»/g) || []).length) s += " »";   // guillemet resté ouvert
     return s;
   };
 
   // Rejette ce qui sort du personnage ou invente un élément de l'enquête
-  function valable(sortie, { question, piste, contaminations, sensibles, avantFaits, fidelite = 0 }) {
+  function valable(sortie, { question, piste, faux, sensibles, avantFaits, fidelite = 0 }) {
     const C = window.ClassifieurNICHD;
     if (!sortie || sortie.length < 1 || sortie.length > 320) return false;
     if (/\bvous\b|\bvotre\b|madame|monsieur|gendarme\s*:|consigne|idée de réponse|en tant qu|intelligence artificielle|\bIA\b/i.test(sortie)) return false;
     const n = C.norm(sortie), q = C.norm(question), p = C.norm(piste || "");
     if (C.similarite(sortie, question) > 0.8 && sortie.length > 25) return false;   // recopie la question
-    // un élément de l'enquête (frappé, poussé…) qui n'est ni dans la question ni dans la piste : inventé
-    for (const c of contaminations || []) {
-      const re = new RegExp(c.motif);
-      if (re.test(n) && !re.test(q) && !re.test(p)) return false;
+    // un fait FAUX (« il m'a frappée », « plusieurs fois »…) que la question n'a pas suggéré : inventé
+    if (faux) {
+      const re = new RegExp(faux);
+      if (re.test(n) && !re.test(q)) return false;
     }
     // récit appuyé sur une piste : l'essentiel doit être conservé (un petit modèle peut inverser un fait :
     // « il me faisait mal » → « il m'amusait »)

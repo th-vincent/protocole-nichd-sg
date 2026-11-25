@@ -128,27 +128,28 @@ Le débrief indique, pour chaque phrase, comment elle a été interprétée.
 
 ### Le petit LLM : l'enfant répond librement
 
-En saisie libre, quand le LLM est lancé par `outils/lancer.py`, **l'enfant n'a plus de réponses préenregistrées** : le LLM ([js/llm.js](js/llm.js), Qwen2.5 1,5B en local) joue l'enfant. Il reçoit :
+En saisie libre, quand le LLM est lancé par `outils/lancer.py`, **l'enfant répond librement** : aucune formulation du scénario ne lui est imposée. Le LLM ([js/llm.js](js/llm.js), Qwen2.5 1,5B en local) joue l'enfant. Il reçoit :
 
-- sa fiche (`saisieLibre.personnage`) et ce qu'il a vécu (`saisieLibre.histoire`, la vérité terrain) ;
+- sa fiche (`saisieLibre.personnage`) et ses souvenirs de ce qu'il a vécu (`saisieLibre.histoire`, écrite à la première personne, dans l'ordre du récit) ;
 - l'historique de la conversation ;
-- une **consigne du tour** donnée par le moteur :
-  - son état (« tu es timide », « tu es très mal à l'aise ») ;
-  - sa réaction (« tu ne comprends pas », « tu es intimidée : tu dis oui » face à une suggestion) ;
-  - « ne parle pas encore de ce qui s'est passé » avant la transition ;
-  - et, si la question se rattache à l'arbre, une **piste d'inspiration**, jamais recopiée telle quelle.
+- **des souvenirs choisis selon la question**, pour que ses réponses collent à l'histoire de l'arbre :
+  - **sa vie quotidienne** : ce que le scénario dit sur le sujet abordé (anniversaire, mamie, figurines…) ;
+  - **pendant le récit** : les passages de son histoire les plus proches de la question, ou la suite de ce qu'il n'a pas encore raconté quand on l'invite à continuer (« Et ensuite ? ») ;
+- **un comportement décidé par l'arbre** :
+  - son état (timide, très mal à l'aise…) ;
+  - ne pas parler des faits avant la transition, révéler quand on le lui demande ouvertement ;
+  - rester réticent aux étapes où il se ferme (`saisieLibre.reticence`) ;
+  - acquiescer à une suggestion s'il est intimidé ;
+  - ne pas comprendre le jargon.
 
-Pour une question de détail sans équivalent dans l'arbre, le moteur lui rappelle les phrases de son histoire les plus proches de la question, et l'enfant répond à partir de là.
+**L'arbre reste le cadre pédagogique** : phases, saut d'étapes, note, retour NICHD, contaminations détectées dans la question. **Les faits recueillis sont ceux que l'enfant dit vraiment** (`saisieLibre.detection`). Le retour indique seulement comment la question a été comprise (type, étape).
 
-**L'arbre reste le cadre pédagogique** : phases, saut d'étapes, note, retour NICHD, contaminations détectées dans la question. **Les faits recueillis sont ceux que l'enfant dit vraiment**, repérés dans sa réponse (`saisieLibre.detection`).
-
-**Garde-fous** : une réponse est régénérée une fois, puis remplacée par la piste, si elle :
+**Garde-fous** : une réponse est régénérée une fois, puis remplacée par la réplique du scénario en secours, si elle :
 - sort du personnage (vouvoiement, consigne recopiée…) ;
-- invente un élément de l'enquête absent de la question (« il m'a frappée ») ;
-- aborde les faits trop tôt ;
-- ou, pendant le récit, s'écarte de la piste au point d'en perdre l'essentiel (un petit modèle peut inverser un fait).
+- affirme un fait faux que la question n'a pas suggéré (`saisieLibre.faux` : frappée, poussée, plusieurs fois…) ;
+- aborde les faits avant la transition.
 
-Comptez 3 à 10 s par réponse sur un PC modeste. Le débrief marque les réponses générées (✎ LLM).
+Les réponses sont limitées à deux phrases. Comptez environ 10 s par réponse sur un PC modeste. Le débrief marque les réponses générées (✎ LLM).
 
 ## Indices pour l'enquêteur
 

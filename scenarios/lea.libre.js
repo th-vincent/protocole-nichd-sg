@@ -19,14 +19,21 @@
     + "Tu adores dessiner des chevaux et tu as six figurines de chevaux (la plus belle s'appelle Tonnerre). Tu fais du vélo avec Hugo et de la danse le samedi. "
     + "Ta chambre est violette. Tu n'as pas d'animal mais tu voudrais un chat. Tu veux être vétérinaire pour les chevaux.";
   // Ce que Léa a vécu, pour le LLM qui la joue (vérité terrain : il ne doit rien ajouter)
-  sl.histoire = "Mercredi, au centre de loisirs, c'était l'heure de ranger les jeux. Tu voulais finir ton dessin de cheval. "
-    + "Kévin, l'animateur (grand, cheveux noirs, il a des lunettes), a crié et t'a attrapée par le bras gauche pour t'emmener dans le couloir. "
-    + "Il serrait très fort. Tu lui as dit « aïe, tu me fais mal », il n'a pas lâché. Il t'a dit : « La prochaine fois, tu ranges quand on te dit. » "
-    + "Ta copine Inès a vu et t'a fait un câlin. C'est arrivé une seule fois. Il ne t'a pas frappée et ne t'a pas poussée. "
-    + "Le soir, tu avais une marque violette sur l'avant-bras (un gros bleu), qui t'a fait mal deux jours ; maman l'a vue et a pris une photo. "
-    + "Tu lui as d'abord dit que tu t'étais cognée, parce que tu avais peur que Kévin et toi vous vous fassiez gronder. "
-    + "Lundi, ta maîtresse a vu la marque en sport et tu lui as raconté. La première à savoir, c'est Inès.";
+  // (à la première personne : ce sont ses souvenirs, dans l'ordre du récit)
+  sl.histoire = "Mercredi, au centre de loisirs, c'était l'heure de ranger les jeux. Moi je voulais finir mon dessin de cheval. "
+    + "Kévin, l'animateur, a crié et il m'a attrapée par le bras pour m'emmener dans le couloir. Il est grand, il a des cheveux noirs et des lunettes. "
+    + "Il serrait très fort. Je lui ai dit « aïe, tu me fais mal », mais il a pas lâché. "
+    + "Il m'a dit : « La prochaine fois, tu ranges quand on te dit. » Après il m'a lâchée dans le couloir. "
+    + "Ma copine Inès a vu, elle m'a fait un câlin. C'est arrivé une seule fois. Il m'a pas frappée et il m'a pas poussée. "
+    + "Le soir, j'avais une marque violette sur le bras, un gros bleu, ça m'a fait mal deux jours. Maman l'a vu et elle a fait une photo. "
+    + "Je lui ai dit que je m'étais cognée, parce que j'avais peur que Kévin et moi on se fasse gronder. "
+    + "Lundi, la maîtresse a vu mon bras en sport, alors je lui ai raconté. La première à savoir, c'est Inès.";
   sl.consigneAvantFaits = "Ne parle pas de ce qui s'est passé mercredi.";
+  sl.consigneCloture = "C'est la fin de l'audition : réponds simplement. Ce qui t'inquiète, c'est de revoir Kévin au centre.";
+  // étapes où Léa n'ose pas parler (le LLM reste discret)
+  sl.reticence = ["transition_bloque", "recit_ferme", "recit_contamine"];
+  // ce qui n'est PAS arrivé : le LLM ne doit pas l'affirmer de lui-même (sauf acquiescement à une suggestion)
+  sl.faux = "frapp|\\btap(e|ait|ee)\\b|gifl|\\bcoups?\\b|pouss|souvent|tout le temps|plusieurs fois|d'autres fois|chaque fois";
   // Faits reconnus dans ce que Léa dit vraiment (regex sur le texte sans accents)
   sl.detection = {
     lieu_date: "mercredi|centre",

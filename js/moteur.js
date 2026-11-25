@@ -84,7 +84,7 @@
   let sc = null, cle = null;
   let etat, noeudId, journal, faits, marques, utilises, soutiens, phasesVues;
   let silencesSuite = 0, stressMax = 0, dernierTexte = null, retour = null, frappe = null;
-  let indiceNoeud = null, indiceNiveau = 0, nbIndices = 0;
+  let indiceNoeud = null, indiceNiveau = 0, nbIndices = 0, racontees = new Set();
   const options = { feedback: true, jauges: true, libre: false };
   const modeLibre = () => options.libre && !!sc.saisieLibre;
 
@@ -227,7 +227,7 @@
     etat = { confiance: 3, stress: 4, contamination: 0, ...sc.etatInitial };
     journal = []; faits = new Set(); marques = new Set(); utilises = new Set(); soutiens = new Set(); phasesVues = new Set();
     silencesSuite = 0; stressMax = etat.stress; dernierTexte = null; retour = null; noeudId = null;
-    indiceNoeud = null; indiceNiveau = 0; nbIndices = 0;
+    indiceNoeud = null; indiceNiveau = 0; nbIndices = 0; racontees = new Set();
     document.body.classList.add("en-salle");
     $("#barre-haut").hidden = true;
     $("#ecran-accueil").hidden = true;
@@ -301,44 +301,102 @@
   const AVANT_FAITS = ["introduction", "regles", "rapport", "memoire"];
   const generatif = (depuis) => !!(depuis && depuis.__libre && window.LLM && window.LLM.pret() && depuis.type !== "silence");
 
+  // L'enfant répond LIBREMENT : aucune formulation ne lui est imposée. L'arbre décide de son comportement
+  // (révéler ou non, se fermer, acquiescer…) et lui fournit des SOUVENIRS : ce que le scénario dit de sa vie et de
+  // ce qu'il a vécu, choisis selon la question, et la suite de son récit quand on l'invite à continuer.
   async function jouerParLLM(r, n, depuis) {
     const L = depuis.__libre, sl = sc.saisieLibre, consignes = [];
     if (etat.stress >= 7) consignes.push("Tu es très mal à l'aise, tu parles tout bas, en très peu de mots.");
     else if (etat.confiance <= 2) consignes.push("Tu es timide.");
     else if (etat.confiance >= 6 && etat.stress <= 4) consignes.push("Tu es à l'aise.");
-    const devoile = phasesVues.has("recit");
-    if (L.type === "incomprise") consignes.push("Tu ne comprends pas.");
+    const debutRecit = n.phase === "recit" && !journal.slice(0, -1).some((j) => j.phase === "recit");
+    const invitation = ["invitation", "invitation_indicee"].includes(L.type);
+    let souvenirs = [];
+    if (L.type === "incomprise") consignes.push("Tu ne comprends pas la question.");
     else if (L.type === "suggestive" && /^[….\s]*(oui|ouais)/i.test(r.texte)) consignes.push(tpl("Tu es intimidé{e} : tu dis oui même si ce n'est pas vrai."));
-    else if (L.generique && PHASES_NEUTRES.includes(n.phase) && ["directive", "choix", "invitation", "invitation_indicee", "consigne"].includes(L.type))
-      consignes.push("Réponds avec ta vie. Si tu ne sais pas, dis-le.");
-    // question de détail pendant le récit : sans rapprochement franc avec l'arbre, l'enfant répond d'après son
-    // histoire ; on lui rappelle les passages les plus proches de la question (un petit modèle ne les retrouve pas seul)
-    else if ((L.generique || !L.franc) && devoile && ["directive", "choix"].includes(L.type)) {
-      const souvenirs = await souvenirsPour(L.texte);
-      consignes.push(`Souviens-toi : « ${souvenirs} » Réponds à la question avec ça, en une phrase. N'invente rien.`);
+    else if ((sl.reticence || []).includes(noeudId)) consignes.push("Tu n'arrives pas à en parler maintenant : tu réponds très peu, ou « je sais pas ».");
+    else if (AVANT_FAITS.includes(n.phase)) {
+      souvenirs = await souvenirsArbre(L.texte, n);
+      consignes.push("Réponds librement, avec ta vie de tous les jours. Si tu ne sais pas, dis-le.", sl.consigneAvantFaits || "Ne parle pas de ce qui t'est arrivé.");
+    } else if (n.phase === "transition") {
+      souvenirs = await souvenirsArbre(L.texte, n);
+      consignes.push("Tu n'as pas encore raconté ce qui t'est arrivé : tu ne le racontes que si on te demande vraiment pourquoi tu es là.");
+    } else if (debutRecit || (n.phase === "recit" && invitation)) {
+      souvenirs = await souvenirsHistoire(null, true);
+      consignes.push(debutRecit ? "On te demande pourquoi tu es là : tu commences à raconter, avec tes mots, juste le début."
+        : "Raconte la suite de ce qui t'est arrivé, avec tes mots. Ne répète pas ce que tu as déjà dit.");
+    } else if (n.phase === "cloture") {
+      souvenirs = await souvenirsArbre(L.texte, n);
+      consignes.push(sl.consigneCloture || "C'est la fin de l'audition : réponds simplement.");
+    } else {
+      souvenirs = [...await souvenirsHistoire(L.texte), ...await souvenirsArbre(L.texte, n, 2)];
+      consignes.push("Réponds à la question avec tes mots, en restant fidèle à tes souvenirs. N'invente rien. Si tu ne sais pas, dis-le.");
     }
-    else consignes.push(`Idée de réponse : « ${r.texte} »`);
-    const surPiste = consignes.some((x) => x.startsWith("Idée de réponse"));
-    if (AVANT_FAITS.includes(n.phase)) consignes.push(sl.consigneAvantFaits || "Ne parle pas de ce qui t'est arrivé.");
-    const historique = journal.filter((j) => j.question && j.enfant != null && j.type !== "silence").slice(-6).map((j) => [j.question, j.enfant]);
+    souvenirs = [...new Set(souvenirs)].slice(0, 4);
+    if (souvenirs.length) consignes.unshift(`Tes souvenirs : ${souvenirs.map((x) => "« " + x + " »").join(" ")}`);
+    const historique = journal.filter((j) => j.question && j.enfant != null && j.type !== "silence").slice(-4).map((j) => [j.question, j.enfant]);
     reflexion(true);
     const t = await window.LLM.jouer({
-      prenom: sc.prenom, age: String(sc.age || "").split("·")[0].trim(), personnage: sl.personnage, histoire: sl.histoire,
-      historique, question: L.texte, consigne: consignes.join(" "), piste: r.texte,
-      contaminations: sl.contaminations, sensibles: sl.sensibles, avantFaits: AVANT_FAITS.includes(n.phase),
-      fidelite: surPiste && ["transition", "recit"].includes(n.phase) ? 0.75 : 0
+      prenom: sc.prenom, age: String(sc.age || "").split("·")[0].trim(), feminin: sc.genre === "f", personnage: sl.personnage, histoire: sl.histoire,
+      historique, question: L.texte, consigne: consignes.join(" "),
+      faux: sl.faux, sensibles: sl.sensibles, avantFaits: AVANT_FAITS.includes(n.phase) || n.phase === "transition"
     });
     reflexion(false);
     if (t) { r.texte = t; r.genere = true; }
+    if (n.phase === "recit") noterRacontees(r.texte);
   }
 
-  // les 2 phrases de l'histoire de l'enfant les plus proches de la question
-  async function souvenirsPour(question) {
-    const phrases = (sc.saisieLibre.histoire || "").match(/[^.!?]+[.!?]/g) || [];
-    if (!phrases.length) return "";
+  /* ---------- mémoire de l'enfant (pour le LLM) ---------- */
+  const phrasesHistoire = () => ((sc.saisieLibre.histoire || "").match(/[^.!?]+[.!?]/g) || []).map((p) => p.trim());
+
+  // ce que l'enfant a déjà raconté : « Et ensuite ? » doit faire avancer le récit
+  function noterRacontees(texte) {
+    phrasesHistoire().forEach((p, i) => { if (CL().similarite(p, texte) >= 0.3) racontees.add(i); });
+  }
+
+  // la suite du récit (phrases pas encore racontées), ou les phrases les plus proches de la question
+  async function souvenirsHistoire(question, suite) {
+    const ph = phrasesHistoire();
+    if (!ph.length) return [];
+    if (suite || !question) {   // les phrases qui suivent la dernière racontée
+      const apres = racontees.size ? Math.max(...racontees) + 1 : 0;
+      const idx = ph.map((_, i) => i).filter((i) => i >= apres && !racontees.has(i)).slice(0, 2);
+      idx.forEach((i) => racontees.add(i));   // proposés pour la suite : considérés comme racontés
+      return idx.length ? idx.map((i) => ph[i]) : ph.slice(-2);
+    }
     const v = iaPrete() ? (await window.IA.vecteurs([question]))[0] : null;
-    const sims = await similaritesTextes(phrases.map((p) => p.trim()), question, v);
-    return phrases.map((p, i) => [p.trim(), sims[i]]).sort((a, b) => b[1] - a[1]).slice(0, 2).map((x) => x[0]).join(" ");
+    const sims = await similaritesTextes(ph, question, v);
+    return ph.map((p, i) => [p, sims[i]]).sort((x, y) => y[1] - x[1]).slice(0, 2).map((x) => x[0]);
+  }
+
+  // Souvenirs tirés de l'arbre : les répliques du scénario dont la question ressemble à celle posée.
+  // Avant la transition, rien de ce qui concerne les faits.
+  let connaissances = null, connaissancesSc = null;
+  function listeConnaissances() {
+    if (connaissancesSc === sc) return connaissances;
+    const sl = sc.saisieLibre, l = [];
+    const texteDe = (rep) => (typeof rep === "string" ? rep : Array.isArray(rep) ? texteDe(rep[rep.length - 1]) : rep && rep.texte);
+    const ajout = (c, phase) => {
+      let rep = texteDe(c.reponse);
+      if (!rep && typeof c.suivant === "string" && sc.noeuds[c.suivant]) rep = texteDe(sc.noeuds[c.suivant].enfant);
+      if (rep && c.question && rep.replace(/[^a-zà-ÿ]/gi, "").length >= 12) l.push({ q: tpl(c.question), r: tpl(rep), phase });
+    };
+    for (const x of Object.values(sc.noeuds)) [...(x.choix || []), ...(x.libre || [])].forEach((c) => ajout(c, x.phase));
+    for (const [ph, liste] of Object.entries(sl.parPhase || {})) liste.forEach((c) => ajout(c, ph));
+    (sl.globaux || []).forEach((c) => ajout(c, (c.phases || ["rapport"])[0]));
+    (sl.partout || []).forEach((c) => ajout(c, "partout"));
+    connaissances = l; connaissancesSc = sc;
+    return l;
+  }
+
+  async function souvenirsArbre(question, n, combien = 3) {
+    const avant = AVANT_FAITS.includes(n.phase) || n.phase === "transition";
+    const l = listeConnaissances().filter((k) => !(avant && (k.phase === "recit" || k.phase === "transition")));
+    if (!l.length) return [];
+    const v = iaPrete() ? (await window.IA.vecteurs([question]))[0] : null;
+    const sims = await similaritesTextes(l.map((k) => k.q), question, v);
+    return l.map((k, i) => [k.r, sims[i]]).filter((x) => x[1] >= (v ? 0.55 : 0.4))
+      .sort((x, y) => y[1] - x[1]).slice(0, combien).map((x) => x[0]);
   }
 
   function detecterFaits(texte) {
@@ -385,7 +443,7 @@
     retour = {
       noeud: noeudId, phase: n.phase, question: c.question ? tpl(c.question) : null, type: c.type,
       qualite: c.qualite, feedback: c.feedback, mieux: c.mieux ? tpl(c.mieux) : null, enfant: null, didascalie: null, delta,
-      interpretation: libre ? interpretationTexte(c, libre) : null,
+      interpretation: libre ? (generatif(c) ? interpretationLibre(c, libre) : interpretationTexte(c, libre)) : null,
       saut: saut && saut.sautees.length ? saut.sautees.map(nomPhase) : null
     };
     journal.push(retour);
@@ -723,6 +781,16 @@
       c.effets.confiance = (c.effets.confiance || 0) + 1;
       c.feedback += tpl(" Ton chaleureux : {P} se sent écouté{e}.");
     }
+  }
+
+  // avec le LLM, aucune formulation du scénario n'est mise en avant : seulement le type de question et l'étape
+  function interpretationLibre(c, libre) {
+    if (libre.cls.type === "silence") return null;
+    let s = `Comprise comme : ${TYPES[c.type].nom.toLowerCase()}`;
+    if (libre.saut) s += ` · étape plus loin dans le protocole (« ${nomPhase(sc.noeuds[libre.saut].phase)} »)`;
+    if (libre.cls.ton === "dur") s += " · ton brusque";
+    else if (libre.cls.ton === "doux") s += " · ton chaleureux";
+    return s + " · réponse libre de l'enfant";
   }
 
   function interpretationTexte(c, libre) {
