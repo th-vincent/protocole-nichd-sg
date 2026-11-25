@@ -21,7 +21,7 @@ window.IA = (() => {
     if (!location.protocol.startsWith("http")) return false;   // file:// : le navigateur interdit de lire le disque
     try { return (await fetch(BASE + chemin, { method: "HEAD", cache: "no-store" })).ok; } catch { return false; }
   };
-  let extracteur = null, banque = [], intentions = [], promesse = null;
+  let extracteur = null, banque = [], intentions = [], promesse = null, file = Promise.resolve();
 
   const ia = {
     etat: "inactif",          // inactif | chargement | pret | erreur
@@ -61,15 +61,22 @@ window.IA = (() => {
       return promesse;
     },
 
-    async vecteurs(textes) {
-      const manquants = [...new Set(textes.filter((t) => !cache.has(t)))];
-      for (let i = 0; i < manquants.length; i += 32) {
-        const lot = manquants.slice(i, i + 32);
-        const sortie = (await extracteur(lot, { pooling: "mean", normalize: true })).tolist();
-        lot.forEach((t, k) => cache.set(t, sortie[k]));
-      }
-      return textes.map((t) => cache.get(t));
+    // les calculs passent l'un après l'autre (le moteur WebAssembly n'en traite qu'un à la fois)
+    vecteurs(textes) {
+      const calcul = async () => {
+        const manquants = [...new Set(textes.filter((t) => !cache.has(t)))];
+        for (let i = 0; i < manquants.length; i += 32) {
+          const lot = manquants.slice(i, i + 32);
+          const sortie = (await extracteur(lot, { pooling: "mean", normalize: true })).tolist();
+          lot.forEach((t, k) => cache.set(t, sortie[k]));
+        }
+        return textes.map((t) => cache.get(t));
+      };
+      file = file.then(calcul, calcul);
+      return file;
     },
+
+    connu: (t) => cache.has(t),
 
     cos: (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; },
 

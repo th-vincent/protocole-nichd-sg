@@ -102,6 +102,14 @@ Pour chaque phrase tapée, l'analyse se fait en trois temps :
 
    Chacune reçoit un score qui combine le sens (IA), l'accord du type de question, les `motsCles` et les prénoms. L'étape en cours passe avant les branches globales, et un mot-clé explicite de l'étape l'emporte toujours. Une invitation ou un soutien sans correspondance prend la sortie de l'étape la plus proche en sens. La réaction générique selon le type n'intervient qu'en dernier recours.
 
+**Si l'enquêteur va trop vite** et que rien ne correspond dans l'étape en cours, la phrase est cherchée dans les étapes **plus loin** du protocole. Si une correspondance claire est trouvée, l'audition saute à cette étape et reprend à partir de là. Le retour précise les étapes sautées, rappelle pourquoi le protocole les prévoit et plafonne la note. Le débrief le signale aussi (« ⚠ Étapes sautées »).
+
+Le saut a ses limites :
+- il ne va que vers l'avant ;
+- jamais vers le récit des faits, qui ne commence que lorsque l'enfant révèle ;
+- dans la transition, seulement vers l'étape d'entrée ;
+- une relance sans contenu (« Et après ? ») ne fait jamais sauter : il faut un vrai mot en commun, comme « anniversaire ».
+
 Garde-fous :
 - une proposition qui introduit un élément contaminant n'est jamais choisie si l'enquêteur ne l'a pas tapé ;
 - les prénoms (`saisieLibre.noms`) empêchent de confondre « Inès, c'est qui ? » et « Kévin, c'est qui ? » ;

@@ -209,6 +209,7 @@ kbd{font:600 12px Lexend,sans-serif;border:1px solid currentColor;border-radius:
 .libre textarea{flex:1;resize:vertical;min-height:58px;font:16px/1.45 "Atkinson Hyperlegible",system-ui,sans-serif;color:var(--ink);background:var(--carte);border:1.5px solid var(--ligne);border-radius:12px;padding:10px 14px}
 .libre textarea:focus{outline:none;border-color:var(--canard);box-shadow:0 0 0 3px rgba(47,127,134,.2)}
 .libre .btn{flex:none;align-self:flex-end}
+.saut-etapes{font-size:13.5px;font-weight:700;color:var(--t-cho)}
 .par-llm{font-style:normal;font:600 11px Lexend,sans-serif;color:var(--t-sou);border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-inline-start:4px}
 .retour .interpretation,.journal .interp{font-size:13.5px;color:var(--doux);font-style:italic}
 .fiche-reglages input:disabled+span{opacity:.5}

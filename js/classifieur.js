@@ -170,12 +170,13 @@ window.ClassifieurNICHD = (() => {
       if (x.origine === "global") s = mots || x.sim >= S.globalSansMots ? s - 0.12 : -1;
       else if (x.origine === "phase") s -= 0.03;   // options de la phase : juste derrière celles du nœud
       else if (x.origine === "phase-suivante") s -= 0.08;   // l'enquêteur anticipe l'étape suivante
+      else if (x.origine === "saut") s -= 0.1;              // étape plus loin dans le protocole : en dernier
       const nc = (x.textes || []).flatMap(cites);
       if (nt.length && nc.length && !nt.some((nom) => nc.includes(nom))) s -= 0.35;
       if (x.c.type === cls.type) s += S.bonusType;
       else if (FAMILLE[x.c.type] && FAMILLE[x.c.type] === FAMILLE[cls.type]) s += S.bonusType / 2;
       else if (cls.type === "suggestive") s -= 0.25;
-      else if (x.c.type === "suggestive") s -= 0.15;
+      else if (x.c.type === "suggestive" || x.c.type === "inadaptee") s -= 0.15;   // une phrase neutre ne tombe pas dans un piège
       else s -= 0.06;
       return { ...x, s, brut: x.sim, mots: mots === true };
     }).sort((a, b) => b.s - a.s);

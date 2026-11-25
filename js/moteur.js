@@ -216,7 +216,7 @@
     $("#transcript").classList.remove("ouvert");
     appliquerApparence();
     $("#qui").textContent = sc.prenom;
-    if (modeLibre() && window.IA) { window.IA.charger(); }
+    if (modeLibre() && window.IA) { window.IA.charger().then(prechauffer); }
     afficherEtatIA();
     majJauges();
     allerA(sc.depart);
@@ -258,7 +258,7 @@
     r.texte = tpl(r.texte ?? "…");
     r.didascalie = tpl(r.didascalie || "");
     if (!r.expression) r.expression = expressionDepuisEtat();
-    await reformulerParLLM(r, n, depuis);
+    if (llmUtile(r, depuis)) await reformulerParLLM(r, n, depuis);   // le QCM reste strictement immédiat
     dernierTexte = r.texte;
 
     const dernier = journal[journal.length - 1];
@@ -272,9 +272,10 @@
   // Le moteur a déjà décidé du contenu (faits, stress, note) ; si le LLM échoue ou dérape, la réplique écrite reste.
   // improvisation sur la vie quotidienne permise seulement là où rien ne touche aux faits ni aux tests de règles
   const PHASES_NEUTRES = ["introduction", "rapport", "memoire", "cloture"];
+  const llmUtile = (r, depuis) => !!(depuis && depuis.__libre && window.LLM && window.LLM.pret()
+    && depuis.type !== "silence" && r.texte.replace(/[.…\s]/g, ""));
   async function reformulerParLLM(r, n, depuis) {
-    const L = depuis && depuis.__libre;
-    if (!L || !window.LLM || !window.LLM.pret() || depuis.type === "silence" || !r.texte.replace(/[.…\s]/g, "")) return;
+    const L = depuis.__libre;
     const sl = sc.saisieLibre;
     const improviser = L.generique && PHASES_NEUTRES.includes(n.phase)
       && ["directive", "choix", "invitation", "invitation_indicee", "consigne"].includes(L.type) && r.texte.length < 30;
@@ -298,9 +299,21 @@
 
   function choisir(c0, cleChoix, libre) {
     if (frappe) return;
+    const saut = libre && libre.saut && libre.saut !== noeudId ? sauterVers(libre.saut) : null;
     const n = sc.noeuds[noeudId];
     const c = resoudreChoix(c0);
     if (libre) appliquerLibre(c, libre);
+    if (saut) {
+      // étape réellement atteinte : celle de la proposition, ou celle où elle mène
+      const arrivee = sc.noeuds[resoudreSuivant(c.suivant)] || n;
+      saut.vers = arrivee.phase;
+      saut.sautees = ORDRE.slice(saut.de + 1, ORDRE.indexOf(arrivee.phase)).filter((p) => !phasesVues.has(p));
+    }
+    if (saut && saut.sautees.length) {
+      c.feedback = `⚠ Vous êtes passé(e) directement à l'étape « ${nomPhase(saut.vers)} » en sautant : ${saut.sautees.map(nomPhase).join(", ")}. `
+        + `Or ${saut.sautees.map((p) => RAISONS[p]).filter(Boolean).join(" ; ")}. L'audition reprend à partir de cette étape. ` + c.feedback;
+      c.qualite = Math.min(c.qualite, saut.sautees.some((p) => ["regles", "rapport", "transition"].includes(p)) ? 0 : 1);
+    }
     const avant = { confiance: etat.confiance, stress: etat.stress };
     for (const k of ["confiance", "stress"]) etat[k] = borne(etat[k] + (c.effets[k] || 0));
     [].concat(c.faits || []).forEach(ajouterFait);
@@ -314,7 +327,8 @@
     retour = {
       noeud: noeudId, phase: n.phase, question: c.question ? tpl(c.question) : null, type: c.type,
       qualite: c.qualite, feedback: c.feedback, mieux: c.mieux ? tpl(c.mieux) : null, enfant: null, didascalie: null, delta,
-      interpretation: libre ? interpretationTexte(c, libre) : null
+      interpretation: libre ? interpretationTexte(c, libre) : null,
+      saut: saut && saut.sautees.length ? saut.sautees.map(nomPhase) : null
     };
     journal.push(retour);
     majJauges(delta);
@@ -328,8 +342,8 @@
 
   // Seuils de rapprochement : similarité de sens (IA) ou recouvrement de mots (règles, si l'IA est indisponible)
   const SEUILS = {
-    ia:     { exact: 0.9, proche: 0.6, globalSansMots: 0.8, bonusType: 0.1, motsCles: 0.75, bonusMots: 0.1, maluMots: 0.05 },
-    regles: { exact: 0.8, proche: 0.5, globalSansMots: 9, bonusType: 0.12, motsCles: 0.6, bonusMots: 0.2, maluMots: 0.15 }
+    ia:     { exact: 0.9, proche: 0.6, saut: 0.66, sautBrut: 0.72, globalSansMots: 0.8, bonusType: 0.1, motsCles: 0.75, bonusMots: 0.1, maluMots: 0.05 },
+    regles: { exact: 0.8, proche: 0.5, saut: 0.55, sautBrut: 0.45, globalSansMots: 9, bonusType: 0.12, motsCles: 0.6, bonusMots: 0.2, maluMots: 0.15 }
   };
   const textesDe = (c) => [tpl(c.question || ""), ...(c.exemples || [])].filter(Boolean);
 
@@ -372,6 +386,87 @@
     ].filter(({ c }) => verifie(c.si) && (!c.typesLibres || c.typesLibres.includes(cls.type)));
   }
 
+  /* ---------- saut d'étapes : la question correspond à une étape plus loin dans le protocole ---------- */
+  const ORDRE = PHASES.map((p) => p.cle);
+  const verifieA = (si, id) => { const ici = noeudId; noeudId = id; try { return verifie(si); } finally { noeudId = ici; } };
+  // mots porteurs de sens (« anniversaire », « chien »…) : une relance sans contenu (« Et après ? ») ne fait jamais sauter
+  const VIDES_SAUT = /^(racont|parl|ensuit|apres|pass|tout|chos|dir|dis|quoi|moment|debut|fin|plus|maintenant|veu|peu|bien|alor)/;
+  const contenu = (t) => CL().tokens(t).filter((w) => w.length > 3 && !VIDES_SAUT.test(w));
+
+  // Toutes les réponses des étapes PLUS LOIN que l'étape en cours, avec deux limites :
+  //  - jamais vers le récit des faits (il ne commence que lorsque l'enfant révèle lui-même) ;
+  //  - dans la transition, seulement son étape d'entrée : les autres (enfant bloquée, réponse à une
+  //    suggestion…) n'ont de sens que dans leur contexte.
+  const cibles = (s) => (s == null ? [] : typeof s === "string" ? [s] : s.map((x) => x.vers));
+  const versRecit = (c) => [...cibles(c.suivant), ...(c.selon || []).flatMap((v) => cibles(v.suivant))]
+    .some((id) => sc.noeuds[id] && sc.noeuds[id].phase === "recit");
+  function candidatsSaut(n, cls) {
+    const ici = ORDRE.indexOf(n.phase), out = [], entrees = sc.saisieLibre.entrees || {};
+    for (const [id, x] of Object.entries(sc.noeuds)) {
+      if (x.fin || x.phase === "recit" || ORDRE.indexOf(x.phase) <= ici) continue;
+      if (x.phase === "transition" && id !== (entrees.transition || "transition")) continue;
+      x.choix.forEach((c, i) => out.push({ c, cle: i, origine: "saut", source: id }));
+      (x.libre || []).forEach((c, i) => out.push({ c, cle: "L" + i, origine: "saut", source: id }));
+    }
+    const suivante = ORDRE[ici + 1];
+    for (const [ph, liste] of Object.entries(sc.saisieLibre.parPhase || {})) {
+      const k = ORDRE.indexOf(ph);
+      if (k <= ici || ph === "recit" || (ph === suivante && entrees[ph])) continue;   // la phase suivante est déjà proposée
+      const premier = Object.keys(sc.noeuds).find((id) => sc.noeuds[id].phase === ph && !sc.noeuds[id].fin);
+      liste.forEach((c, i) => out.push({ c, cle: "P" + ph + i, origine: "saut", source: (c.si && c.si.noeuds) ? c.si.noeuds[0] : entrees[ph] || premier }));
+    }
+    return out.filter((x) => x.source && !versRecit(x.c) && verifieA(x.c.si, x.source) && (!x.c.typesLibres || x.c.typesLibres.includes(cls.type)));
+  }
+
+  async function chercherSaut(n, cls, texte, v, S) {
+    const mots = contenu(texte);
+    if (!mots.length) return null;
+    const cands = candidatsSaut(n, cls).filter((x) => {
+      x.textes = textesDe(x.c);
+      return x.textes.some((t) => contenu(t).some((w) => mots.includes(w)));
+    });
+    if (!cands.length) return null;
+    const sims = await similarites(cands, texte, v);
+    cands.forEach((x, i) => { x.sim = sims[i]; });
+    const b = CL().classerDansNoeud(texte, cls, cands, S, sc.saisieLibre.noms).filter((x) => compatible(x.c, cls))[0];
+    return b && b.s >= S.saut && b.brut >= S.sautBrut ? b : null;
+  }
+
+  const RAISONS = {
+    regles: "les règles de base (« je ne sais pas », correction, promesse) évitent que l'enfant devine ou invente",
+    rapport: "le rapport met l'enfant en confiance et l'habitue à parler longuement",
+    memoire: "l'entraînement à la mémoire épisodique prépare un récit détaillé",
+    transition: "la transition laisse l'enfant introduire lui-même le sujet",
+    recit: "le récit libre recueille les faits avec les mots de l'enfant"
+  };
+  const nomPhase = (k) => (PHASES.find((p) => p.cle === k) || {}).nom || k;
+
+  // on reprend l'audition à l'étape trouvée (les phases sautées sont calculées d'après l'étape d'arrivée)
+  function sauterVers(id) {
+    const de = ORDRE.indexOf(sc.noeuds[noeudId].phase);
+    noeudId = id;
+    return { de, vers: null, sautees: [] };
+  }
+
+  // Phrases du scénario analysées en arrière-plan, par petits paquets avec des pauses : la page reste fluide,
+  // et la recherche dans tout l'arbre est ensuite immédiate.
+  let prechauffage = null;
+  function prechauffer() {
+    if (!iaPrete() || !sc || !sc.saisieLibre || !options.libre || prechauffage === sc) return;
+    prechauffage = sc;
+    const sl = sc.saisieLibre, tous = [];
+    for (const x of Object.values(sc.noeuds)) [...(x.choix || []), ...(x.libre || [])].forEach((c) => tous.push(...textesDe(c)));
+    Object.values(sl.parPhase || {}).forEach((l) => l.forEach((c) => tous.push(...textesDe(c))));
+    (sl.globaux || []).forEach((c) => tous.push(...textesDe(c)));
+    const reste = [...new Set(tous)].filter((t) => !window.IA.connu(t));
+    const pas = async () => {
+      if (prechauffage !== sc || !reste.length) return;
+      await window.IA.vecteurs(reste.splice(0, 4)).catch(() => {});
+      setTimeout(pas, 60);
+    };
+    setTimeout(pas, 1500);
+  }
+
   // Ordre : réponse de l'étape quasi identique → question courante (« Comment ça va ? ») → réponse de l'étape
   // la mieux classée (sens + type + mots-clés) → invitation/soutien : sortie de l'étape la plus proche
   // → réaction générique selon le type de question.
@@ -406,6 +501,20 @@
       // incompréhensible « par construction » (jargon, double question, trop longue) : l'enfant est perdu ;
       // une phrase simplement inclassable peut encore correspondre à une réponse de l'étape
       if ((cls.type === "incomprise" && cls.raison !== "inclassable") || !(m && m.s >= S.proche)) m = null;
+    }
+    // la question correspond peut-être à une étape plus loin (l'enquêteur va trop vite) : on y saute
+    // si l'étape en cours n'a rien de proche, ou si l'étape plus loin correspond nettement mieux
+    if (!parMot && !(m && m.s >= S.exact) && !(cls.type === "incomprise" && cls.raison !== "inclassable")) {
+      let saut = await chercherSaut(n, cls, texte, v, S);
+      if (saut && m && saut.brut < m.brut + 0.05) saut = null;
+      if (saut) {
+        const cleSaut = /^[GIP]/.test(String(saut.cle)) ? saut.cle : saut.source + "#" + saut.cle;
+        const reste = saut.c.suivant == null || saut.c.suivant === saut.source;
+        if (reste && utilises.has(cleSaut)) return { c: repetition(saut.c), cle: null, libre: base };
+        let c = saut.c;
+        if (c.exige && !new RegExp(c.exige.motif).test(CL().norm(texte))) c = { ...c, ...c.exige.sinon };
+        return { c, cle: saut.cle, libre: { ...base, rapproche: tpl(saut.c.question || ""), saut: saut.source } };
+      }
     }
     // invitation ou soutien sans correspondance : la sortie de l'étape du même genre la plus proche en sens
     // (une invitation ouverte vaut pour n'importe quel sujet déjà en cours)
@@ -545,6 +654,7 @@
     if (libre.cls.type === "silence") return null;
     let s = libre.rapproche ? `Rapprochée de la formulation « ${libre.rapproche} »` : "Aucune formulation proche dans le scénario : réaction générique selon le type de question";
     if (libre.cls.intention && !libre.rapproche) s = "Reconnue comme une question courante : réaction adaptée";
+    if (libre.saut) s = `Correspond à une étape plus loin dans le protocole (« ${nomPhase(sc.noeuds[libre.saut].phase)} ») : « ${libre.rapproche} »`;
     if (libre.cls.parIA || libre.cls.intention) s += " · classée par l'IA";
     if (libre.cls.ton === "dur") s += " · ton brusque";
     else if (libre.cls.ton === "doux") s += " · ton chaleureux";
@@ -811,6 +921,7 @@
               <span class="qualite q-${j.qualite}">${QUALITES[j.qualite]}</span><span class="j-phase">${nomPhase(j.phase)}</span></div>
             <p class="q">${j.question && j.type !== "silence" ? "« " + echap(j.question) + " »" : "(Vous laissez un silence.)"}</p>
             ${j.interpretation ? `<p class="interp">${echap(j.interpretation)}</p>` : ""}
+            ${j.saut ? `<p class="saut-etapes">⚠ Étapes sautées : ${echap(j.saut.join(", "))}</p>` : ""}
             ${j.enfant != null ? `<p class="r">${echap(sc.prenom)} : ${echap(j.enfant)}${j.didascalie ? " (" + echap(j.didascalie) + ")" : ""}${j.genere ? ' <span class="par-llm" title="Réplique formulée par le petit LLM à partir de la réponse prévue par le scénario">✎ LLM</span>' : ""}</p>` : ""}
             ${d.confiance || d.stress ? `<div class="deltas">${d.confiance ? `<span>Confiance ${d.confiance > 0 ? "+" : ""}${d.confiance}</span>` : ""}${d.stress ? `<span>Stress ${d.stress > 0 ? "+" : ""}${d.stress}</span>` : ""}</div>` : ""}
             <p class="fb">${echap(j.feedback)}</p>
@@ -829,6 +940,7 @@
 
   function recommandations({ ratioOuv, ratioFaits, sugg, contamines, nbSoutiens, nbSilences, coups }) {
     const r = [];
+    if (coups.some((j) => j.saut)) r.push(["Ne pas brûler les étapes", "Vous êtes passé(e) plusieurs fois directement à une étape plus avancée. Chaque phase du protocole prépare la suivante : règles, rapport et entraînement au récit conditionnent la qualité du témoignage."]);
     if (!phasesVues.has("regles")) r.push(["Poser les règles de base", "Expliquez et testez avec un exemple concret « je ne sais pas », « je ne comprends pas », « tu peux me corriger », puis demandez une promesse simple de dire ce qui s'est vraiment passé."]);
     if (!phasesVues.has("rapport") || !phasesVues.has("memoire")) r.push(["Prendre le temps du rapport et de l'entraînement", "Le rapport (« Raconte-moi ce que tu aimes faire ») et le récit d'un événement neutre « du début à la fin » habituent l'enfant à parler longuement. Les sauter, c'est obtenir ensuite des réponses courtes."]);
     if (ratioOuv < 0.6) r.push(["Plus d'invitations ouvertes", "Visez une large majorité d'invitations. Épuisez le récit libre (« Raconte-moi tout », « Et ensuite ? », « Tu as parlé de [X], raconte-moi tout sur [X] ») avant toute question directive."]);
@@ -909,6 +1021,7 @@
   };
   function afficherEtatIA() {
     if (!window.IA) return;
+    if (window.IA.etat === "pret") prechauffer();
     const { etat, progression } = window.IA;
     const local = window.IA.local;
     const t = etat === "chargement" ? (local ? "IA : chargement depuis ce PC…" : `IA : téléchargement du modèle${progression ? " " + progression + " %" : "…"} (une seule fois)`)
