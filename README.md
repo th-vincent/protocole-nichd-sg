@@ -33,7 +33,9 @@ js/llm.js                     petit LLM local : formule les réponses de l'enfan
 js/moteur.js                  moteur générique : état, conditions, silence, soutien, frappe du texte, débrief
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
 scenarios/lea.libre.js        Léa : ~240 options supplémentaires par phase et indices par étape, pour la saisie libre
-scenarios/lea.reformulations.js  Léa : ~660 autres façons de poser chaque question (≈ 100 à 140 formulations par étape)
+scenarios/lea.naturel.js      Léa : ~170 questions naturelles hors protocole strict (vie quotidienne, précisions, curiosité…) + banque « partout »
+scenarios/lea.reformulations.js  Léa : ~660 autres façons de poser les questions du scénario
+                              → au total, 73 à 103 questions possibles et 180 à 250 formulations par étape
 scenarios/noah.js             Noah, 6 ans, témoin (conflit de loyauté, récit déjà influencé par les adultes)
 outils/verifier-scenarios.js  vérifie liens, faits, types, conditions et nœuds inatteignables
 outils/lancer.py              lance le jeu (serveur local) et installe l'IA si besoin
@@ -115,6 +117,8 @@ Garde-fous :
 - une proposition qui introduit un élément contaminant n'est jamais choisie si l'enquêteur ne l'a pas tapé ;
 - les prénoms (`saisieLibre.noms`) empêchent de confondre « Inès, c'est qui ? » et « Kévin, c'est qui ? » ;
 - une question précise reposée, même reformulée, donne « Je te l'ai déjà dit… ».
+
+**Rapidité** : les phrases du scénario sont analysées dès le couloir, dans l'ordre du protocole, puis gardées dans le navigateur (IndexedDB). La première partie peut demander quelques secondes à chaque nouvelle phase ; les suivantes sont immédiates.
 
 **Pour améliorer la compréhension**, le plus efficace est d'ajouter des formulations réelles :
 - dans [js/ia-exemples.js](js/ia-exemples.js), pour le type de question ou une nouvelle question courante ;

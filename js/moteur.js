@@ -404,6 +404,8 @@
       ...n.choix.map((c, i) => ({ c, cle: i, origine: "noeud" })),
       ...(n.libre || []).map((c, i) => ({ c, cle: "L" + i, origine: "libre" })),
       ...((sc.saisieLibre.parPhase || {})[n.phase] || []).map((c, i) => ({ c, cle: "P" + n.phase + i, origine: "phase" })),
+      // questions naturelles valables à toutes les étapes (« Tu comprends ? », « Tu as froid ? »…)
+      ...(sc.saisieLibre.partout || []).map((c, i) => ({ c, cle: "Z" + i, origine: "partout" })),
       ...(sc.saisieLibre.globaux || []).map((c, i) => ({ c, cle: "G" + i, origine: "global" })).filter(({ c }) => !c.phases || c.phases.includes(n.phase))
     ].filter(({ c }) => verifie(c.si) && (!c.typesLibres || c.typesLibres.includes(cls.type)));
   }
@@ -472,22 +474,31 @@
 
   // Phrases du scénario analysées en arrière-plan, par petits paquets avec des pauses : la page reste fluide,
   // et la recherche dans tout l'arbre est ensuite immédiate.
-  let prechauffage = null;
+  let prechauffage = null, derniereSaisie = 0;
+  document.addEventListener("input", () => { derniereSaisie = Date.now(); }, true);
+  document.addEventListener("keydown", () => { derniereSaisie = Date.now(); }, true);
+  // (dès le couloir pour le dossier sélectionné : l'analyse avance pendant la lecture des post-it)
   function prechauffer() {
-    if (!iaPrete() || !sc || !sc.saisieLibre || !options.libre || prechauffage === sc) return;
-    prechauffage = sc;
-    const sl = sc.saisieLibre, tous = [];
-    const debut = Math.max(0, PHASES.findIndex((p) => noeudId && sc.noeuds[noeudId] && p.cle === sc.noeuds[noeudId].phase));
+    const cible = sc && !$("#ecran-jeu").hidden ? sc : window.SCENARIOS[cleCourante];
+    if (!iaPrete() || !cible || !cible.saisieLibre || !options.libre || prechauffage === cible) return;
+    prechauffage = cible;
+    const sl = cible.saisieLibre, tous = [];
+    const textes = (c) => [String(c.question || "").replace(/\{P\}/g, cible.prenom), ...(c.exemples || []), ...((sl.reformulations || {})[c.question] || [])].filter(Boolean);
+    const ici = cible === sc && noeudId && sc.noeuds[noeudId] ? sc.noeuds[noeudId].phase : null;
+    const debut = Math.max(0, PHASES.findIndex((p) => p.cle === ici));
     for (const { cle: ph } of PHASES.slice(debut)) {   // dans l'ordre du protocole, à partir de l'étape en cours
-      for (const x of Object.values(sc.noeuds)) if (x.phase === ph) [...(x.choix || []), ...(x.libre || [])].forEach((c) => tous.push(...textesDe(c)));
-      ((sl.parPhase || {})[ph] || []).forEach((c) => tous.push(...textesDe(c)));
-      (sl.globaux || []).filter((c) => !c.phases || c.phases.includes(ph)).forEach((c) => tous.push(...textesDe(c)));
+      for (const x of Object.values(cible.noeuds)) if (x.phase === ph) [...(x.choix || []), ...(x.libre || [])].forEach((c) => tous.push(...textes(c)));
+      ((sl.parPhase || {})[ph] || []).forEach((c) => tous.push(...textes(c)));
+      (sl.globaux || []).filter((c) => !c.phases || c.phases.includes(ph)).forEach((c) => tous.push(...textes(c)));
     }
+    (sl.partout || []).forEach((c) => tous.push(...textes(c)));
     const reste = [...new Set(tous)].filter((t) => !window.IA.connu(t));
     const pas = async () => {
-      if (prechauffage !== sc || !reste.length) return;
-      await window.IA.vecteurs(reste.splice(0, 4)).catch(() => {});
-      setTimeout(pas, 60);
+      if (prechauffage !== cible || !reste.length) return;
+      // l'enquêteur tape : on se met en veille pour ne pas ralentir la saisie
+      if (Date.now() - derniereSaisie < 2000) return setTimeout(pas, 600);
+      await window.IA.vecteurs(reste.splice(0, 2)).catch(() => {});
+      setTimeout(pas, 150);
     };
     setTimeout(pas, 1500);
   }
@@ -1066,7 +1077,7 @@
   $("#opt-jauges").onchange = (e) => { options.jauges = e.target.checked; if (etat) majJauges(); };
   $("#opt-libre").onchange = (e) => {
     options.libre = e.target.checked;
-    if (options.libre && window.IA) window.IA.charger();   // on télécharge le modèle pendant qu'on lit le dossier
+    if (options.libre && window.IA) window.IA.charger().then(prechauffer);   // modèle et analyse des phrases pendant qu'on lit le dossier
   };
   function afficherEtatIA() {
     if (!window.IA) return;

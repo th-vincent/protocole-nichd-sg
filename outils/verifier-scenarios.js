@@ -106,6 +106,10 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
       const prec = PHASES[PHASES.indexOf(phase) - 1];
       Object.keys(N).filter((x) => N[x].phase === prec).forEach((x) => aretes[x].push(id));
     }
+    (sl.partout || []).forEach((c, i) => {
+      if (c.si && c.si.noeuds) err(`partout[${i}] : une question « partout » ne doit pas cibler des nœuds`);
+      for (const id of Object.keys(N)) if (!N[id].fin) aretes[id].push(...choix(c, `partout[${i}]`, id, false).filter((x) => x !== id));
+    });
     for (const [phase, liste] of Object.entries(sl.parPhase || {})) {
       if (!PHASES.includes(phase)) err(`parPhase : phase inconnue "${phase}"`);
       liste.forEach((c, i) => {
@@ -129,6 +133,7 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
     for (const n of Object.values(N)) [...(n.choix || []), ...(n.libre || [])].forEach((c) => questions.add(c.question));
     Object.values(sl.parPhase || {}).forEach((l) => l.forEach((c) => questions.add(c.question)));
     (sl.globaux || []).forEach((c) => questions.add(c.question));
+    (sl.partout || []).forEach((c) => questions.add(c.question));
     let nb = 0;
     for (const [q, l] of Object.entries(sl.reformulations)) {
       if (!questions.has(q)) err(`reformulations : aucune option n'a pour question « ${q.slice(0, 60)}… »`);

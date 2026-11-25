@@ -169,6 +169,7 @@ window.ClassifieurNICHD = (() => {
       // l'étape en cours passe avant les branches globales
       if (x.origine === "global") s = mots || x.sim >= S.globalSansMots ? s - 0.12 : -1;
       else if (x.origine === "phase") s -= 0.03;   // options de la phase : juste derrière celles du nœud
+      else if (x.origine === "partout") s -= 0.04;  // questions valables à toutes les étapes
       else if (x.origine === "phase-suivante") s -= 0.08;   // l'enquêteur anticipe l'étape suivante
       else if (x.origine === "saut") s -= 0.1;              // étape plus loin dans le protocole : en dernier
       const nc = (x.textes || []).flatMap(cites);

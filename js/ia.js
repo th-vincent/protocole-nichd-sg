@@ -23,6 +23,37 @@ window.IA = (() => {
   };
   let extracteur = null, banque = [], intentions = [], promesse = null, file = Promise.resolve();
 
+  // Cache permanent (IndexedDB) : une phrase analysée une fois ne l'est plus jamais, même d'une partie à l'autre.
+  let idb = null;
+  const ouvrirIDB = () => new Promise((ok) => {
+    try {
+      const r = indexedDB.open("salle-melanie-ia", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("vecteurs");
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => ok(null);
+    } catch { ok(null); }
+  });
+  async function chargerCache() {
+    idb = await ouvrirIDB();
+    if (!idb) return;
+    await new Promise((ok) => {
+      try {
+        const req = idb.transaction("vecteurs").objectStore("vecteurs").openCursor();
+        req.onsuccess = () => {
+          const c = req.result;
+          if (!c) return ok();
+          if (String(c.key).startsWith(MODELE + "|")) cache.set(String(c.key).slice(MODELE.length + 1), new Float32Array(c.value));
+          c.continue();
+        };
+        req.onerror = () => ok();
+      } catch { ok(); }
+    });
+  }
+  const memoriser = (t, v) => {
+    if (!idb) return;
+    try { idb.transaction("vecteurs", "readwrite").objectStore("vecteurs").put(new Float32Array(v).buffer, MODELE + "|" + t); } catch { /* cache facultatif */ }
+  };
+
   const ia = {
     etat: "inactif",          // inactif | chargement | pret | erreur
     local: null,              // true si l'IA est installée sur ce PC
@@ -39,6 +70,7 @@ window.IA = (() => {
       if (promesse) return promesse;
       changer("chargement", 0);
       promesse = (async () => {
+        await chargerCache();
         const local = await ia.verifierLocal();
         const { pipeline, env } = await import(local ? BASE + LOCAL_LIB + "transformers.min.js" : URL_LIB);
         if (local) {
@@ -68,7 +100,7 @@ window.IA = (() => {
         for (let i = 0; i < manquants.length; i += 32) {
           const lot = manquants.slice(i, i + 32);
           const sortie = (await extracteur(lot, { pooling: "mean", normalize: true })).tolist();
-          lot.forEach((t, k) => cache.set(t, sortie[k]));
+          lot.forEach((t, k) => { cache.set(t, sortie[k]); memoriser(t, sortie[k]); });
         }
         return textes.map((t) => cache.get(t));
       };
