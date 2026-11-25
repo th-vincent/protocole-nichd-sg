@@ -69,19 +69,19 @@ window.SCENARIOS.noah = {
       choix: [
         {
           question: "Bonjour Noah. Moi, c'est Camille. Je suis gendarme, et mon travail, c'est d'écouter les enfants. Tu peux t'asseoir sur le canapé. Tu vois la caméra, là-haut ? Elle filme, comme ça je n'oublie rien de ce qu'on dit.",
-          type: "consigne", qualite: 2, effets: { confiance: 2, stress: -1 },
+          type: "consigne", qualite: 2, effets: { confiance: 2, stress: -1 }, si: { sans_marques: ["accueil"] }, marque: ["presente", "camera"],
           feedback: "Introduction conforme et adaptée à l'âge : phrases courtes, rôle, caméra, invitation à s'installer.",
           suivant: "regles"
         },
         {
           question: "Bonjour Noah ! Il est beau, ton lapin. Comment il s'appelle ?",
-          type: "directive", qualite: 1, effets: { confiance: 2 }, marque: "pompon",
-          feedback: "Bonne accroche pour un enfant de 6 ans, et il répond ! Mais elle ne remplace pas l'introduction : votre rôle et la caméra restent à expliquer.",
+          type: "directive", qualite: 1, effets: { confiance: 2 }, marque: ["pompon", "accueil"], si: { sans_marques: ["accueil"] },
+          feedback: "Bonne accroche pour un enfant de 6 ans, et il répond ! Il reste maintenant à dire qui vous êtes et à expliquer la caméra.",
           reponse: { texte: "…Pompon.", didascalie: "Noah montre timidement son lapin." }
         },
         {
           question: "Bonjour Noah. Je suis gendarme. On va parler un peu de ce qui s'est passé samedi à la maison, d'accord ?",
-          type: "consigne", qualite: -1, effets: { stress: 2 }, faits: ["c_samedi"],
+          type: "consigne", qualite: -1, effets: { stress: 2 }, faits: ["c_samedi"], si: { sans_marques: ["accueil"] }, marque: "presente",
           feedback: "Vous annoncez le jour et le lieu des faits dès la première phrase. Noah n'a rien dit, et sait déjà ce que vous attendez de lui.",
           mieux: "Je suis gendarme, et mon travail, c'est d'écouter les enfants. Tu vois la caméra, là-haut ?",
           reponse: { texte: "…", expression: "ferme", didascalie: "Noah se cache à moitié derrière son lapin." },
@@ -89,9 +89,23 @@ window.SCENARIOS.noah = {
         },
         {
           question: "Coucou mon grand. N'aie pas peur, ici tout le monde est gentil.",
-          type: "inadaptee", qualite: 0, effets: { confiance: 1 },
-          feedback: "« Ici tout le monde est gentil » oppose implicitement cette pièce à un ailleurs où quelqu'un ne l'est pas : c'est déjà une suggestion. Et l'introduction (rôle, caméra) manque.",
+          type: "inadaptee", qualite: 0, effets: { confiance: 1 }, si: { sans_marques: ["accueil"] }, marque: "accueil",
+          feedback: "« Ici tout le monde est gentil » oppose implicitement cette pièce à un ailleurs où quelqu'un ne l'est pas : c'est déjà une suggestion. Il reste aussi à dire qui vous êtes et à expliquer la caméra.",
           mieux: "Bonjour Noah. Moi, c'est Camille. Je suis gendarme, et mon travail, c'est d'écouter les enfants.",
+          reponse: { texte: "…", didascalie: "Noah hoche la tête, sans lâcher son lapin." }
+        },
+        // après un simple accueil, l'introduction se complète à l'intervention suivante
+        {
+          question: "Moi, c'est Camille. Je suis gendarme, et mon travail, c'est d'écouter les enfants. Tu vois la caméra, là-haut ? Elle filme, comme ça je n'oublie rien de ce que tu me dis.",
+          type: "consigne", qualite: 2, effets: { confiance: 1, stress: -1 }, si: { marques: ["accueil"] }, marque: ["presente", "camera"],
+          feedback: "Introduction complétée en deux temps : l'accueil d'abord, puis votre rôle et la caméra. C'est tout à fait correct.",
+          suivant: "regles"
+        },
+        {
+          question: "Bon, on va commencer. Je vais te poser des questions.",
+          type: "consigne", qualite: 0, si: { marques: ["accueil"] },
+          feedback: "Noah ne sait toujours pas qui vous êtes ni à quoi sert la caméra. Vous pouvez encore le dire tout de suite, au début des règles.",
+          mieux: "Moi, c'est Camille. Je suis gendarme, et mon travail, c'est d'écouter les enfants. Tu vois la caméra, là-haut ?",
           suivant: "regles"
         }
       ]
@@ -105,9 +119,22 @@ window.SCENARIOS.noah = {
         { texte: "D'accord.", didascalie: "Noah se recule dans le canapé, Pompon sur les genoux." }
       ],
       choix: [
+        // rattrapage de l'introduction à l'intervention suivante
+        {
+          question: "J'ai oublié de me présenter : je m'appelle Camille, je suis gendarme, et mon travail, c'est d'écouter les enfants. Et tu vois la caméra, là-haut ? Elle filme, comme ça je n'oublie rien de ce que tu me dis.",
+          type: "consigne", qualite: 2, effets: { confiance: 1 }, si: { sans_marques: ["presente", "camera"] }, marque: ["presente", "camera"],
+          feedback: "Bon rattrapage, juste à temps : Noah sait maintenant qui vous êtes et pourquoi on filme.",
+          reponse: "D'accord."
+        },
+        {
+          question: "Au fait, tu vois la caméra, là-haut ? Elle filme ce qu'on dit, comme ça je n'ai pas besoin de tout écrire.",
+          type: "consigne", qualite: 2, si: { marques: ["presente"], sans_marques: ["camera"] }, marque: "camera",
+          feedback: "Caméra expliquée à l'intervention suivante : l'introduction est complète.",
+          reponse: "D'accord."
+        },
         {
           question: "Je vais te poser des questions. Si tu ne sais pas la réponse, tu dis « je sais pas ». On essaie ? Comment il s'appelle, mon chat ?",
-          type: "consigne", qualite: 2, effets: { confiance: 1 },
+          type: "consigne", qualite: 2, effets: { confiance: 1 }, marque: "jesaispas",
           feedback: "Règle posée en mots simples et testée immédiatement : parfait pour un enfant de 6 ans.",
           suivant: "regles_test"
         },
@@ -163,7 +190,7 @@ window.SCENARIOS.noah = {
           question: "On a fini les règles. Maintenant, on va faire connaissance.",
           type: "consigne", qualite: 1,
           feedback: "Il manque au moins une règle (correction, « je comprends pas » ou promesse).",
-          selon: [{ si: { marques: ["corrige", "promesse"] }, qualite: 2, feedback: "Règles posées et testées : vous pouvez passer au rapport." }],
+          selon: [{ si: { sans_marques: ["camera"] }, qualite: 0, feedback: "Les règles sont posées, mais la caméra n'a jamais été expliquée : un enfant qui ignore pourquoi on le filme reste sur ses gardes. Il est encore temps de le faire." }, { si: { marques: ["corrige", "promesse"] }, qualite: 2, feedback: "Règles posées et testées : vous pouvez passer au rapport." }],
           reponse: "D'accord.",
           suivant: "rapport_debut"
         }
@@ -175,6 +202,25 @@ window.SCENARIOS.noah = {
       phase: "rapport",
       enfant: "D'accord.",
       choix: [
+        // rattrapages possibles si l'introduction ou les règles ont été écourtées
+        {
+          question: "Avant de continuer, j'ai oublié de te dire : si tu ne connais pas la réponse à une question, tu dis « je sais pas ». On essaie ? Comment s'appelle mon chien ?",
+          type: "consigne", qualite: 1, si: { sans_marques: ["jesaispas"] }, marque: "jesaispas",
+          feedback: "Bon réflexe de rattraper la règle « je sais pas ». Elle aurait dû venir avec les règles, mais mieux vaut tard que jamais.",
+          reponse: { texte: "Je sais pas !", expression: "detendu" }
+        },
+        {
+          question: "Et si je dis quelque chose de faux, tu me corriges. Si je dis que tu as deux ans ?",
+          type: "consigne", qualite: 1, si: { marques: ["jesaispas"], sans_marques: ["corrige"] }, marque: "corrige",
+          feedback: "Règle de correction rattrapée et testée : utile avant d'aborder les faits.",
+          reponse: { texte: "Non ! J'ai six ans !", expression: "detendu" }
+        },
+        {
+          question: "Au fait, tu vois la caméra, là-haut ? Elle filme ce qu'on dit, comme ça je n'ai pas besoin de tout écrire.",
+          type: "consigne", qualite: 1, si: { sans_marques: ["camera"] }, marque: "camera",
+          feedback: "Caméra enfin expliquée : correct, même si c'était le rôle de l'introduction.",
+          reponse: "D'accord."
+        },
         {
           question: "J'aimerais bien te connaître. Raconte-moi les choses que tu aimes faire.",
           type: "invitation", effets: { confiance: 2, stress: -1 },

@@ -99,30 +99,44 @@ window.SCENARIOS.lea = {
       choix: [
         {
           question: "Bonjour Léa. Je m'appelle Camille, je suis gendarme. Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées. Tu vois la caméra, là-haut ? Elle filme ce qu'on dit, comme ça je n'ai pas besoin de tout écrire.",
-          type: "consigne", qualite: 2, effets: { confiance: 2, stress: -1 },
+          type: "consigne", qualite: 2, effets: { confiance: 2, stress: -1 }, si: { sans_marques: ["accueil"] }, marque: ["presente", "camera"],
           feedback: "Introduction conforme : vous vous présentez, expliquez votre rôle et l'enregistrement, sans rien dire des faits.",
           suivant: "regles"
         },
         {
           question: "Bonjour Léa. Je m'appelle Camille, je suis gendarme. Ta maîtresse m'a expliqué pourquoi tu es là, alors on va en parler tranquillement. La caméra, là-haut, ne t'en occupe pas.",
-          type: "consigne", qualite: 0, effets: { stress: 1 },
+          type: "consigne", qualite: 0, effets: { stress: 1 }, si: { sans_marques: ["accueil"] }, marque: "presente",
           feedback: "Deux écarts discrets. Vous laissez entendre que vous savez déjà ce qui s'est passé : l'enfant peut alors se contenter de confirmer. Et vous éludez la caméra au lieu de l'expliquer.",
           mieux: "Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées. La caméra filme pour que je n'aie pas à tout écrire.",
           suivant: "regles"
         },
         {
           question: "Bonjour Léa, moi c'est Camille. N'aie pas peur, tu n'as rien fait de mal. Tu es très courageuse d'être venue jusqu'ici.",
-          type: "inadaptee", qualite: 0, effets: { confiance: 1 },
-          feedback: "Bienveillant en apparence, mais « courageuse » et « rien fait de mal » laissent entendre qu'il s'est passé quelque chose de grave. Et vous n'avez expliqué ni votre rôle ni l'enregistrement.",
+          type: "inadaptee", qualite: 0, effets: { confiance: 1 }, si: { sans_marques: ["accueil"] }, marque: "accueil",
+          feedback: "Bienveillant en apparence, mais « courageuse » et « rien fait de mal » laissent entendre qu'il s'est passé quelque chose de grave. Il reste aussi à expliquer votre rôle et la caméra.",
           mieux: "Je m'appelle Camille, je suis gendarme. Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées.",
-          suivant: "regles"
+          reponse: { texte: "…D'accord.", didascalie: "Léa serre un peu plus son sac." }
         },
         {
           question: "Bonjour Léa, je m'appelle Camille, je travaille à la gendarmerie. Avant qu'on commence, est-ce que tu sais pourquoi tu es là aujourd'hui ?",
-          type: "directive", qualite: 0, effets: { stress: 2 },
+          type: "directive", qualite: 0, effets: { stress: 2 }, si: { sans_marques: ["accueil"] }, marque: "presente",
           feedback: "Aborder le motif dès la première phrase court-circuite l'introduction, les règles et la mise en confiance. Et la question appelle un simple « oui » qui n'apprend rien.",
           mieux: "Tu vois la caméra, là-haut ? Elle filme ce qu'on dit, comme ça je n'ai pas besoin de tout écrire.",
           reponse: { texte: "…Oui.", expression: "inquiet", didascalie: "Léa baisse les yeux vers ses chaussures." },
+          suivant: "regles"
+        },
+        // après un simple accueil, l'introduction se complète à l'intervention suivante
+        {
+          question: "Je suis gendarme. Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées. Tu vois la caméra, là-haut ? Elle filme, comme ça je n'oublie rien de ce que tu me dis.",
+          type: "consigne", qualite: 2, effets: { confiance: 1, stress: -1 }, si: { marques: ["accueil"] }, marque: ["presente", "camera"],
+          feedback: "Introduction complétée en deux temps : l'accueil d'abord, puis votre rôle et la caméra. C'est tout à fait correct.",
+          suivant: "regles"
+        },
+        {
+          question: "Bon, on va commencer. Je vais te poser des questions.",
+          type: "consigne", qualite: 0, si: { marques: ["accueil"] },
+          feedback: "Léa ne sait toujours pas qui vous êtes ni à quoi sert la caméra. Vous pouvez encore le dire tout de suite, au début des règles.",
+          mieux: "Je suis gendarme. Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées. Tu vois la caméra, là-haut ?",
           suivant: "regles"
         }
       ]
@@ -137,9 +151,22 @@ window.SCENARIOS.lea = {
         { texte: "D'accord." }
       ],
       choix: [
+        // rattrapage de l'introduction à l'intervention suivante
+        {
+          question: "J'ai oublié de me présenter : je m'appelle Camille, je suis gendarme, et mon travail, c'est d'écouter les enfants. Et tu vois la caméra, là-haut ? Elle filme, comme ça je n'oublie rien de ce que tu me dis.",
+          type: "consigne", qualite: 2, effets: { confiance: 1 }, si: { sans_marques: ["presente", "camera"] }, marque: ["presente", "camera"],
+          feedback: "Bon rattrapage, juste à temps : Léa sait maintenant qui vous êtes et pourquoi on filme.",
+          reponse: "D'accord."
+        },
+        {
+          question: "Au fait, tu vois la caméra, là-haut ? Elle filme ce qu'on dit, comme ça je n'ai pas besoin de tout écrire.",
+          type: "consigne", qualite: 2, si: { marques: ["presente"], sans_marques: ["camera"] }, marque: "camera",
+          feedback: "Caméra expliquée à l'intervention suivante : l'introduction est complète.",
+          reponse: "D'accord."
+        },
         {
           question: "Avant qu'on commence, quelques règles. Si je te pose une question et que tu ne connais pas la réponse, tu me dis « je ne sais pas ». Par exemple : comment s'appelle mon chien ?",
-          type: "consigne", qualite: 2, effets: { confiance: 1 },
+          type: "consigne", qualite: 2, effets: { confiance: 1 }, marque: "jesaispas",
           feedback: "Règle « je ne sais pas » posée, et immédiatement testée avec une question impossible : exactement ce que recommande le protocole.",
           suivant: "regles_test"
         },
@@ -195,6 +222,7 @@ window.SCENARIOS.lea = {
           type: "consigne", qualite: 0,
           feedback: "Vous passez au rapport sans avoir posé les autres règles (correction, « je ne comprends pas », promesse). Chacune protège le témoignage.",
           selon: [
+            { si: { sans_marques: ["camera"] }, qualite: 0, feedback: "Les règles sont posées, mais la caméra n'a jamais été expliquée : un enfant qui ignore pourquoi on le filme reste sur ses gardes. Il est encore temps de le faire." },
             { si: { marques: ["corrige", "comprend", "promesse"] }, qualite: 2, feedback: "Règles posées et testées : vous pouvez passer au rapport." },
             { si: { marques: ["corrige"] }, qualite: 1, feedback: "Correction testée, mais il manque « je ne comprends pas » ou la promesse de dire ce qui s'est vraiment passé." }
           ],
@@ -212,6 +240,25 @@ window.SCENARIOS.lea = {
         { texte: "D'accord." }
       ],
       choix: [
+        // rattrapages possibles si l'introduction ou les règles ont été écourtées
+        {
+          question: "Avant de continuer, j'ai oublié de te dire : si tu ne connais pas la réponse à une question, tu dis « je sais pas ». On essaie ? Comment s'appelle mon chien ?",
+          type: "consigne", qualite: 1, si: { sans_marques: ["jesaispas"] }, marque: "jesaispas",
+          feedback: "Bon réflexe de rattraper la règle « je sais pas ». Elle aurait dû venir avec les règles, mais mieux vaut tard que jamais.",
+          reponse: { texte: "Je sais pas !", expression: "detendu" }
+        },
+        {
+          question: "Et si je dis quelque chose de faux, tu me corriges. Si je dis que tu as deux ans ?",
+          type: "consigne", qualite: 1, si: { marques: ["jesaispas"], sans_marques: ["corrige"] }, marque: "corrige",
+          feedback: "Règle de correction rattrapée et testée : utile avant d'aborder les faits.",
+          reponse: { texte: "Non ! J'ai huit ans !", expression: "detendu" }
+        },
+        {
+          question: "Au fait, tu vois la caméra, là-haut ? Elle filme ce qu'on dit, comme ça je n'ai pas besoin de tout écrire.",
+          type: "consigne", qualite: 1, si: { sans_marques: ["camera"] }, marque: "camera",
+          feedback: "Caméra enfin expliquée : correct, même si c'était le rôle de l'introduction.",
+          reponse: "D'accord."
+        },
         {
           question: "J'aimerais mieux te connaître, Léa. Raconte-moi les choses que tu aimes faire.",
           type: "invitation", effets: { confiance: 2, stress: -1 },
