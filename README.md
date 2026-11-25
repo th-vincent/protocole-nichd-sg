@@ -23,6 +23,7 @@ js/licence.js                 écran de connexion (licence) : identifiants, sess
 js/moteur.js                  moteur générique : état, conditions, silence, soutien, frappe du texte, débrief
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
 scenarios/noah.js             Noah, 6 ans, témoin (conflit de loyauté, récit déjà influencé par les adultes)
+scenarios/jade.js             Jade, 5 ans, témoin : cas simulé d'après l'étude « Sam Stone » (Leichtman & Ceci, 1995) sur la suggestibilité
 outils/verifier-scenarios.js  vérifie liens, faits, types, conditions et nœuds inatteignables
 ```
 
