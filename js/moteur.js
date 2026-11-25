@@ -557,8 +557,12 @@
 
   /* ---------- accueil : couloir, post-it, porte ---------- */
   let cleCourante = Object.keys(window.SCENARIOS)[0];
-  const COULEURS = ["#fff27a", "#ffb3c7", "#a8e6ff", "#c4f5a8", "#ffd59a"];
-  const ROTATIONS = [-3, 2.5, -1.5, 3.5, -2.5, 1.5];
+  // post-it « vrais » : presque tous jaunes (nuances d'un même bloc, un peu passées), un seul d'une autre couleur,
+  // écrits au stylo bille ou au feutre, posés de travers, coin du bas légèrement décollé
+  const COULEURS = ["#fbec8f", "#f9e57c", "#fcef9e", "#f7e27a", "#f6c7a8", "#fae888"];
+  const ENCRES = ["#22356f", "#26262a", "#22356f", "#1d2a55", "#26262a"];
+  const ROTATIONS = [-2.2, 1.6, -0.8, 2.8, -1.7, 0.9];
+  const DECALAGES = [[0, 4], [-6, -3], [3, 8], [-2, -6], [5, 2], [-4, 6]];
 
   function rendreAccueil() {
     $("#onglets").innerHTML = Object.entries(window.SCENARIOS).map(([k, s]) =>
@@ -569,7 +573,7 @@
     $("#postits").innerHTML =
       `<div class="postit fiche" style="--r:-1deg"><b>${echap(s.titre)}</b>${echap(s.contexte)}</div>` +
       (d.postits || []).map((p, i) =>
-        `<div class="postit" style="--c:${COULEURS[i % COULEURS.length]};--r:${ROTATIONS[i % ROTATIONS.length]}deg;animation-delay:${0.08 * (i + 1)}s">${echap(p)}</div>`).join("");
+        `<div class="postit" style="--c:${COULEURS[i % COULEURS.length]};--encre:${ENCRES[i % ENCRES.length]};--r:${ROTATIONS[i % ROTATIONS.length]}deg;--dx:${DECALAGES[i % DECALAGES.length][0]}px;--dy:${DECALAGES[i % DECALAGES.length][1]}px;animation-delay:${0.08 * (i + 1)}s">${echap(p)}</div>`).join("");
   }
 
   function entrer() {
@@ -600,8 +604,6 @@
 
   /* ---------- initialisation ---------- */
   rendreAccueil();
-  $("#opt-feedback").onchange = (e) => (options.feedback = e.target.checked);
-  $("#opt-jauges").onchange = (e) => { options.jauges = e.target.checked; if (etat) majJauges(); };
   $("#btn-commencer").onclick = entrer;
   $("#btn-entrer").onclick = entrer;
   $("#btn-quitter").onclick = retourCouloir;
