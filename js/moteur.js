@@ -37,29 +37,9 @@
     silence:            { nom: "Silence", court: "Silence", classe: "t-sil", ouverte: false, question: false, qualite: 1,
       conseil: "Une pause de quelques secondes après une réponse laisse l'enfant compléter. Si le silence devient pesant, relancez par une invitation." },
     inadaptee:          { nom: "Propos inadapté", court: "Inadapté", classe: "t-ina", ouverte: false, question: false, qualite: -1,
-      conseil: "Pas de promesse, de menace, de mise en doute, de jugement sur une personne, ni de remerciement pour le contenu." },
-    incomprise:         { nom: "Question incomprise", court: "Incomprise", classe: "t-inc", ouverte: false, question: true, qualite: -1,
-      conseil: "Une seule question à la fois, courte, avec des mots d'enfant. Évitez le vocabulaire juridique ou abstrait." }
+      conseil: "Pas de promesse, de menace, de mise en doute, de jugement sur une personne, ni de remerciement pour le contenu." }
   };
-  const QUALITES = { "2": "Conforme", "1": "Acceptable", "0": "Discutable", "-1": "À éviter", "-2": "Grave" };
-
-  // Indices : consignes générales par phase, de la plus vague à la plus précise (jamais la phrase toute faite)
-  const INDICES = {
-    introduction: ["Essayez de mettre {P} à l'aise.", "Présentez-vous : qui vous êtes et en quoi consiste votre travail.",
-      "Pensez à expliquer simplement à quoi sert la caméra, sans parler de la raison de sa venue."],
-    regles: ["Essayez d'introduire les consignes de base.", "{P} doit savoir qu'{il} peut dire « je ne sais pas », « je ne comprends pas », et vous corriger si vous vous trompez.",
-      "Testez chaque règle par un petit exemple concret, puis demandez-{lui} de promettre de ne dire que ce qui s'est vraiment passé."],
-    rapport: ["Essayez de mieux connaître {P} et de {le} mettre en confiance.", "Intéressez-vous à ce qu'{il} aime, avec des questions ouvertes (« Raconte-moi… »).",
-      "Reprenez ses propres mots pour l'inviter à développer, plutôt que d'enchaîner les questions fermées."],
-    memoire: ["Entraînez {P} à raconter un souvenir en détail.", "Choisissez un moment récent et neutre, et demandez-{lui} de tout raconter, du début à la fin.",
-      "Relancez avec « Et ensuite ? », puis dites-{lui} que c'est exactement comme ça que vous avez besoin qu'{il} raconte."],
-    transition: ["Amenez doucement le sujet de l'audition, sans rien suggérer.", "Laissez {P} dire {lui}-même pourquoi {il} est là.",
-      "Si {il} ne se lance pas, évoquez seulement la personne à qui {il} a parlé, jamais ce qui s'est passé."],
-    recit: ["Laissez {P} raconter avec ses mots.", "Relancez par des invitations ouvertes (« Et ensuite ? ») et reprenez ses mots pour approfondir.",
-      "Explorez chaque détail qu'{il} a donné ; pensez aussi à demander si c'est arrivé une fois ou plusieurs, et qui a su en premier."],
-    cloture: ["Préparez la fin de l'audition.", "Demandez s'il y a autre chose à ajouter, et si {P} a des questions.",
-      "Remerciez-{le} pour ses efforts, puis terminez sur un sujet neutre."]
-  };
+  const QUALITES = { "2": "Conforme", "1": "Acceptable", "0": "Discutable", "-1": "À éviter", "-2": "Contaminant" };
 
   const SOUTIENS_DEFAUT = [
     "Prends ton temps. Tu fais beaucoup d'efforts, et ça m'aide vraiment.",
@@ -71,7 +51,7 @@
     panique: ["{P} se recroqueville sur le canapé et ne vous regarde plus.", "{P} tremble un peu et serre les bras contre {lui}.", "{P} a les yeux qui brillent : {il} semble au bord des larmes."],
     agite:   ["{P} agite les jambes et se triture les doigts.", "{P} jette des coups d'œil vers la porte.", "{P} se tortille sur le canapé, mal à l'aise."],
     reserve: ["{P} reste sur la réserve, au bord du canapé.", "{P} parle du bout des lèvres, sans trop vous regarder.", "{P} vous observe, encore méfiant{e}."],
-    neutre:  ["{P} vous écoute, assis{e} sagement.", "{P} vous regarde, attenti{ve}.", "{P} attend la suite, plutôt calme."],
+    neutre:  ["{P} vous écoute, assis{e} sagement.", "{P} vous regarde, attentif{ve}.", "{P} attend la suite, plutôt calme."],
     detendu: ["{P} est détendu{e} et balance les jambes.", "{P} vous regarde quand {il} parle, plus à l'aise.", "{P} sourit facilement maintenant."]
   };
 
@@ -84,11 +64,7 @@
   let sc = null, cle = null;
   let etat, noeudId, journal, faits, marques, utilises, soutiens, phasesVues;
   let silencesSuite = 0, stressMax = 0, dernierTexte = null, retour = null, frappe = null;
-  let indiceNoeud = null, indiceNiveau = 0, nbIndices = 0, racontees = new Set();
-  const options = { feedback: true, jauges: true, libre: false, scriptees: false };   // scriptees : saisie libre SANS LLM, choisie explicitement
-  const modeLibre = () => options.libre && !!(sc && sc.saisieLibre);
-  const llmUtilisable = () => options.scriptees || !!(window.LLM && window.LLM.pret());
-  let consoleEnAttente = null;   // nœud dont la console attend le LLM
+  const options = { feedback: true, jauges: true };
 
   /* ---------- textes accordés (« {P} est détendu{e} ») ---------- */
   function tpl(s) {
@@ -112,8 +88,7 @@
       && (si.faits || []).every((f) => faits.has(f))
       && (si.sans_faits || []).every((f) => !faits.has(f))
       && (si.marques || []).every((m) => marques.has(m))
-      && (si.sans_marques || []).every((m) => !marques.has(m))
-      && (!si.noeuds || si.noeuds.includes(noeudId));
+      && (si.sans_marques || []).every((m) => !marques.has(m));
   }
 
   // Une réplique : "texte", { texte, expression, didascalie }, ou liste de variantes [{ si, texte, … }]
@@ -159,15 +134,14 @@
     }
     delete r.selon;
     r.effets = { ...(r.effets || {}) };
-    const noteImposee = r.qualite != null;
     r.qualite = r.qualite ?? TYPES[r.type].qualite;
     r.feedback = tpl(r.feedback || "");
-    if (!specifique && !r.generique) ajusterSelonEtat(r, noteImposee);
+    if (!specifique && !r.generique) ajusterSelonEtat(r);
     return r;
   }
 
   // Règles génériques : le stress et la confiance modifient l'effet et la pertinence d'une intervention.
-  function ajusterSelonEtat(r, noteImposee) {
+  function ajusterSelonEtat(r) {
     const s = etat.stress;
     if (s >= 7 && (r.type === "directive" || r.type === "choix")) {
       r.effets.stress = (r.effets.stress || 0) + 1;
@@ -178,8 +152,7 @@
       r.effets.stress = (r.effets.stress || 0) + 1;
       r.feedback += " Sous stress, un enfant acquiesce encore plus facilement à ce qu'on lui suggère.";
     }
-    // la note imposée par le scénario prime (ex. valoriser la manière de raconter, pas une réassurance)
-    if (r.type === "soutien" && s <= 3 && !noteImposee) {
+    if (r.type === "soutien" && s <= 3) {
       r.qualite = Math.min(r.qualite, 0);
       r.feedback += tpl(" {P} était déjà détendu{e} : trop de réassurance peut laisser entendre que le sujet est grave.");
     }
@@ -226,11 +199,9 @@
   function demarrer(c) {
     arreterFrappe();
     cle = c; sc = window.SCENARIOS[c];
-    prechaufferLLM();
     etat = { confiance: 3, stress: 4, contamination: 0, ...sc.etatInitial };
     journal = []; faits = new Set(); marques = new Set(); utilises = new Set(); soutiens = new Set(); phasesVues = new Set();
     silencesSuite = 0; stressMax = etat.stress; dernierTexte = null; retour = null; noeudId = null;
-    indiceNoeud = null; indiceNiveau = 0; nbIndices = 0; racontees = new Set();
     document.body.classList.add("en-salle");
     $("#barre-haut").hidden = true;
     $("#ecran-accueil").hidden = true;
@@ -239,8 +210,6 @@
     $("#transcript").classList.remove("ouvert");
     appliquerApparence();
     $("#qui").textContent = sc.prenom;
-    if (modeLibre() && window.IA) { window.IA.charger().then(prechauffer); }
-    afficherEtatIA();
     majJauges();
     allerA(sc.depart);
   }
@@ -260,7 +229,7 @@
     faits.add(f);
   }
 
-  async function allerA(id, override, depuis) {
+  function allerA(id, override, depuis) {
     const n = sc.noeuds[id];
     if (!n) { console.error("Nœud introuvable :", id); return; }
     const meme = id === noeudId && !!depuis;
@@ -272,11 +241,8 @@
       r = { texte: override.texte, expression: override.expression, didascalie: override.didascalie };
     } else {
       // l'enfant ne livre les faits du nœud que s'il prononce vraiment la réplique du nœud
-      // (avec le LLM, ce sont les faits détectés dans sa réponse libre qui comptent)
-      if (!generatif(depuis)) {
-        (n.faitsAuto || []).forEach(ajouterFait);
-        if (n.faitsAutoSi && verifie(n.faitsAutoSi.si)) n.faitsAutoSi.faits.forEach(ajouterFait);
-      }
+      (n.faitsAuto || []).forEach(ajouterFait);
+      if (n.faitsAutoSi && verifie(n.faitsAutoSi.si)) n.faitsAutoSi.faits.forEach(ajouterFait);
       r = replique(n);
       if (meme && tpl(r.texte) === dernierTexte) r = { texte: "…" };
     }
@@ -284,171 +250,24 @@
     r.texte = tpl(r.texte ?? "…");
     r.didascalie = tpl(r.didascalie || "");
     if (!r.expression) r.expression = expressionDepuisEtat();
-    if (generatif(depuis)) {   // le QCM reste strictement immédiat
-      if (r.texte.replace(/[.…\s]/g, "")) await jouerParLLM(r, n, depuis);
-      if (!AVANT_FAITS.includes(n.phase)) detecterFaits(r.texte);   // les faits se disent à partir de la transition
-    }
     dernierTexte = r.texte;
 
     const dernier = journal[journal.length - 1];
-    if (dernier && dernier.type && dernier.enfant == null) { dernier.enfant = r.texte; dernier.didascalie = r.didascalie; dernier.genere = !!r.genere; }
+    if (dernier && dernier.type && dernier.enfant == null) { dernier.enfant = r.texte; dernier.didascalie = r.didascalie; }
     else journal.push({ noeud: id, phase: n.phase, question: null, enfant: r.texte, didascalie: r.didascalie });
 
     afficherScene(n, r);
   }
 
-  // Saisie libre + LLM prêt : l'enfant répond LIBREMENT (js/llm.js). Le moteur fournit la consigne du tour
-  // (état, réaction attendue, piste tirée de l'arbre si la question s'y rattache) et garde la pédagogie.
-  // Les faits recueillis sont ceux que l'enfant dit vraiment (saisieLibre.detection).
-  const PHASES_NEUTRES = ["introduction", "rapport", "memoire", "cloture"];
-  const AVANT_FAITS = ["introduction", "regles", "rapport", "memoire"];
-  const generatif = (depuis) => !!(depuis && depuis.__libre && window.LLM && window.LLM.pret() && depuis.type !== "silence");
-
-  // L'enfant répond LIBREMENT : aucune formulation ne lui est imposée. L'arbre décide de son comportement
-  // (révéler ou non, se fermer, acquiescer…) et lui fournit des SOUVENIRS : ce que le scénario dit de sa vie et de
-  // ce qu'il a vécu, choisis selon la question, et la suite de son récit quand on l'invite à continuer.
-  async function jouerParLLM(r, n, depuis) {
-    const L = depuis.__libre, sl = sc.saisieLibre, consignes = [];
-    if (etat.stress >= 7) consignes.push("Tu es très mal à l'aise, tu parles tout bas, en très peu de mots.");
-    else if (etat.confiance <= 2) consignes.push("Tu es timide.");
-    else if (etat.confiance >= 6 && etat.stress <= 4) consignes.push("Tu es à l'aise.");
-    const debutRecit = n.phase === "recit" && !journal.slice(0, -1).some((j) => j.phase === "recit");
-    const invitation = ["invitation", "invitation_indicee"].includes(L.type);
-    let souvenirs = [];
-    if (L.type === "incomprise") consignes.push("Tu ne comprends pas la question.");
-    else if (L.type === "suggestive" && /^[….\s]*(oui|ouais)/i.test(r.texte)) consignes.push(tpl("Tu es intimidé{e} : tu dis oui même si ce n'est pas vrai."));
-    else if ((sl.reticence || []).includes(noeudId)) consignes.push("Tu n'arrives pas à en parler maintenant : tu réponds très peu, ou « je sais pas ».");
-    else if (AVANT_FAITS.includes(n.phase)) {
-      souvenirs = await souvenirsArbre(L.texte, n);
-      consignes.push("Réponds librement, avec ta vie de tous les jours. Si tu ne sais pas, dis-le.", sl.consigneAvantFaits || "Ne parle pas de ce qui t'est arrivé.");
-    } else if (n.phase === "transition") {
-      souvenirs = await souvenirsArbre(L.texte, n);
-      consignes.push("Tu n'as pas encore raconté ce qui t'est arrivé : tu ne le racontes que si on te demande vraiment pourquoi tu es là.");
-    } else if (debutRecit || (n.phase === "recit" && invitation)) {
-      souvenirs = await souvenirsHistoire(null, true);
-      consignes.push(debutRecit ? "On te demande pourquoi tu es là : tu commences à raconter, avec tes mots, juste le début."
-        : "Raconte la suite de ce qui t'est arrivé, avec tes mots. Ne répète pas ce que tu as déjà dit.");
-    } else if (n.phase === "cloture") {
-      souvenirs = await souvenirsArbre(L.texte, n);
-      consignes.push(sl.consigneCloture || "C'est la fin de l'audition : réponds simplement.");
-    } else {
-      souvenirs = [...await souvenirsHistoire(L.texte), ...await souvenirsArbre(L.texte, n, 2)];
-      consignes.push("Réponds à la question avec tes mots, en restant fidèle à tes souvenirs. N'invente rien. Si tu ne sais pas, dis-le.");
-    }
-    souvenirs = [...new Set(souvenirs)].slice(0, 4);
-    if (souvenirs.length) consignes.unshift(`Tes souvenirs : ${souvenirs.map((x) => "« " + x + " »").join(" ")}`);
-    const historique = journal.filter((j) => j.question && j.enfant != null && j.type !== "silence").slice(-4).map((j) => [j.question, j.enfant]);
-    reflexion(true);
-    const t = await window.LLM.jouer({
-      ...profilLLM(), historique, question: L.texte, consigne: consignes.join(" "),
-      faux: sl.faux, sensibles: sl.sensibles, avantFaits: AVANT_FAITS.includes(n.phase) || n.phase === "transition"
-    });
-    reflexion(false);
-    if (t) { r.texte = t; r.genere = true; }
-    else {   // jamais de réplique écrite à la place : l'enfant se tait, et on dit pourquoi
-      r.texte = "…"; r.genere = true;
-      r.didascalie = tpl("({P} ne répond pas : le petit LLM n'a pas pu formuler de réponse. Reformulez ou répétez la question.)");
-      window.LLM.verifier();
-    }
-    if (n.phase === "recit") noterRacontees(r.texte);
-  }
-
-  const profilLLM = () => ({ prenom: sc.prenom, age: String(sc.age || "").split("·")[0].trim(), feminin: sc.genre === "f",
-    personnage: sc.saisieLibre.personnage, histoire: sc.saisieLibre.histoire });
-  // à l'entrée dans la salle : le LLM lit déjà la fiche de l'enfant (mise en cache), la 1re réponse est rapide
-  function prechaufferLLM() {
-    if (modeLibre() && window.LLM && window.LLM.pret()) window.LLM.prechauffer(profilLLM());
-  }
-
-  /* ---------- mémoire de l'enfant (pour le LLM) ---------- */
-  const phrasesHistoire = () => ((sc.saisieLibre.histoire || "").match(/[^.!?]+[.!?]/g) || []).map((p) => p.trim());
-
-  // ce que l'enfant a déjà raconté : « Et ensuite ? » doit faire avancer le récit
-  function noterRacontees(texte) {
-    phrasesHistoire().forEach((p, i) => { if (CL().similarite(p, texte) >= 0.3) racontees.add(i); });
-  }
-
-  // la suite du récit (phrases pas encore racontées), ou les phrases les plus proches de la question
-  async function souvenirsHistoire(question, suite) {
-    const ph = phrasesHistoire();
-    if (!ph.length) return [];
-    if (suite || !question) {   // les phrases qui suivent la dernière racontée
-      const apres = racontees.size ? Math.max(...racontees) + 1 : 0;
-      const idx = ph.map((_, i) => i).filter((i) => i >= apres && !racontees.has(i)).slice(0, 2);
-      idx.forEach((i) => racontees.add(i));   // proposés pour la suite : considérés comme racontés
-      return idx.length ? idx.map((i) => ph[i]) : ph.slice(-2);
-    }
-    const v = iaPrete() ? (await window.IA.vecteurs([question]))[0] : null;
-    const sims = await similaritesTextes(ph, question, v);
-    return ph.map((p, i) => [p, sims[i]]).sort((x, y) => y[1] - x[1]).slice(0, 2).map((x) => x[0]);
-  }
-
-  // Souvenirs tirés de l'arbre : les répliques du scénario dont la question ressemble à celle posée.
-  // Avant la transition, rien de ce qui concerne les faits.
-  let connaissances = null, connaissancesSc = null;
-  function listeConnaissances() {
-    if (connaissancesSc === sc) return connaissances;
-    const sl = sc.saisieLibre, l = [];
-    const texteDe = (rep) => (typeof rep === "string" ? rep : Array.isArray(rep) ? texteDe(rep[rep.length - 1]) : rep && rep.texte);
-    const ajout = (c, phase) => {
-      let rep = texteDe(c.reponse);
-      if (!rep && typeof c.suivant === "string" && sc.noeuds[c.suivant]) rep = texteDe(sc.noeuds[c.suivant].enfant);
-      if (rep && c.question && rep.replace(/[^a-zà-ÿ]/gi, "").length >= 12) l.push({ q: tpl(c.question), r: tpl(rep), phase });
-    };
-    for (const x of Object.values(sc.noeuds)) [...(x.choix || []), ...(x.libre || [])].forEach((c) => ajout(c, x.phase));
-    for (const [ph, liste] of Object.entries(sl.parPhase || {})) liste.forEach((c) => ajout(c, ph));
-    (sl.globaux || []).forEach((c) => ajout(c, (c.phases || ["rapport"])[0]));
-    (sl.partout || []).forEach((c) => ajout(c, "partout"));
-    connaissances = l; connaissancesSc = sc;
-    return l;
-  }
-
-  async function souvenirsArbre(question, n, combien = 3) {
-    const avant = AVANT_FAITS.includes(n.phase) || n.phase === "transition";
-    const l = listeConnaissances().filter((k) => !(avant && (k.phase === "recit" || k.phase === "transition")));
-    if (!l.length) return [];
-    const v = iaPrete() ? (await window.IA.vecteurs([question]))[0] : null;
-    const sims = await similaritesTextes(l.map((k) => k.q), question, v);
-    return l.map((k, i) => [k.r, sims[i]]).filter((x) => x[1] >= (v ? 0.55 : 0.4))
-      .sort((x, y) => y[1] - x[1]).slice(0, combien).map((x) => x[0]);
-  }
-
-  function detecterFaits(texte) {
-    const n = CL().norm(texte);
-    for (const [f, motif] of Object.entries(sc.saisieLibre.detection || {}))
-      if (sc.faits[f] && sc.faits[f].fiable && new RegExp(motif).test(n)) ajouterFait(f);
-  }
-
-  function reflexion(oui) {
-    $(".console").classList.toggle("occupee", oui);
-    $("#attente").hidden = !oui;
-    $("#attente").innerHTML = oui ? `${echap(sc.prenom)} réfléchit… <span>(réponse formulée par le petit LLM)</span>` : "L'enfant parle… <span>(cliquez sur la bulle ou appuyez sur Espace pour afficher toute sa réponse)</span>";
-    if (oui) { $("#zone-choix").innerHTML = ""; $("#retour").hidden = true; $("#bulle-texte").textContent = "…"; }
-  }
-
-  function choisir(c0, cleChoix, libre) {
+  function choisir(c0, cleChoix) {
     if (frappe) return;
-    const saut = libre && libre.saut && libre.saut !== noeudId ? sauterVers(libre.saut) : null;
     const n = sc.noeuds[noeudId];
     const c = resoudreChoix(c0);
-    if (libre) appliquerLibre(c, libre);
-    if (saut) {
-      // étape réellement atteinte : celle de la proposition, ou celle où elle mène
-      const arrivee = sc.noeuds[resoudreSuivant(c.suivant)] || n;
-      saut.vers = arrivee.phase;
-      saut.sautees = ORDRE.slice(saut.de + 1, ORDRE.indexOf(arrivee.phase)).filter((p) => !phasesVues.has(p));
-    }
-    if (saut && saut.sautees.length) {
-      c.feedback = `⚠ Vous êtes passé(e) directement à l'étape « ${nomPhase(saut.vers)} » en sautant : ${saut.sautees.map(nomPhase).join(", ")}. `
-        + `Or ${saut.sautees.map((p) => RAISONS[p]).filter(Boolean).join(" ; ")}. L'audition reprend à partir de cette étape. ` + c.feedback;
-      c.qualite = Math.min(c.qualite, saut.sautees.some((p) => ["regles", "rapport", "transition"].includes(p)) ? 0 : 1);
-    }
     const avant = { confiance: etat.confiance, stress: etat.stress };
     for (const k of ["confiance", "stress"]) etat[k] = borne(etat[k] + (c.effets[k] || 0));
-    // avec le LLM, seuls les éléments contaminants viennent de la question ; les faits viennent de la réponse
-    [].concat(c.faits || []).filter((f) => !(generatif(c) && sc.faits[f] && sc.faits[f].fiable)).forEach(ajouterFait);
+    [].concat(c.faits || []).forEach(ajouterFait);
     [].concat(c.marque || []).forEach((m) => marques.add(m));
-    if (cleChoix != null) utilises.add(cleUtilisee(cleChoix));
+    if (cleChoix != null) utilises.add(noeudId + "#" + cleChoix);
     if (c.type === "soutien") soutiens.add(noeudId);
     silencesSuite = c.type === "silence" ? silencesSuite + 1 : 0;
     stressMax = Math.max(stressMax, etat.stress);
@@ -456,355 +275,12 @@
 
     retour = {
       noeud: noeudId, phase: n.phase, question: c.question ? tpl(c.question) : null, type: c.type,
-      qualite: c.qualite, feedback: c.feedback, mieux: c.mieux ? tpl(c.mieux) : null, enfant: null, didascalie: null, delta,
-      interpretation: libre ? interpretationLibre(c, libre) : null,
-      saut: saut && saut.sautees.length ? saut.sautees.map(nomPhase) : null
+      qualite: c.qualite, feedback: c.feedback, mieux: c.mieux ? tpl(c.mieux) : null, enfant: null, didascalie: null, delta
     };
     journal.push(retour);
     majJauges(delta);
     reagir(delta);
     allerA(resoudreSuivant(c.suivant), variante(c.reponse), c);
-  }
-
-  /* ---------- saisie libre : interpréter une question tapée ---------- */
-  const CL = () => window.ClassifieurNICHD;
-  const iaPrete = () => window.IA && window.IA.etat === "pret";
-
-  // Seuils de rapprochement : similarité de sens (IA) ou recouvrement de mots (règles, si l'IA est indisponible)
-  const SEUILS = {
-    ia:     { exact: 0.9, proche: 0.6, saut: 0.66, sautBrut: 0.72, globalSansMots: 0.8, bonusType: 0.1, motsCles: 0.75, bonusMots: 0.1, maluMots: 0.05 },
-    regles: { exact: 0.8, proche: 0.5, saut: 0.55, sautBrut: 0.45, globalSansMots: 9, bonusType: 0.12, motsCles: 0.6, bonusMots: 0.2, maluMots: 0.15 }
-  };
-  // une option est reconnue par sa question, ses `exemples` et ses reformulations (scenarios/lea.reformulations.js)
-  const textesDe = (c) => [tpl(c.question || ""), ...(c.exemples || []),
-    ...((sc.saisieLibre && sc.saisieLibre.reformulations || {})[c.question] || [])].filter(Boolean);
-
-  // similarité brute entre la phrase tapée et une proposition (sa question et ses éventuels `exemples`)
-  async function similarites(candidats, texte, v) {
-    if (!v) return candidats.map(({ c }) => Math.max(...textesDe(c).map((t) => CL().similarite(texte, t))));
-    const tous = [...new Set(candidats.flatMap(({ c }) => textesDe(c)))];
-    const vecs = new Map((await window.IA.vecteurs(tous)).map((x, i) => [tous[i], x]));
-    return candidats.map(({ c }) => Math.max(...textesDe(c).map((t) => window.IA.cos(v, vecs.get(t)))));
-  }
-
-  async function similaritesTextes(textes, texte, v) {
-    if (!v) return textes.map((t) => CL().similarite(texte, t));
-    return (await window.IA.vecteurs(textes)).map((x) => window.IA.cos(v, x));
-  }
-
-  // une proposition ne peut ni « absorber » des éléments contaminants tapés qu'elle n'introduit pas,
-  // ni en introduire que l'enquêteur n'a pas tapés
-  const contaminants = (c) => [].concat(c.faits || []).filter((f) => sc.faits[f] && !sc.faits[f].fiable);
-  const compatible = (c, cls) =>
-    (c.type === "suggestive" || cls.faits.every((f) => [].concat(c.faits || []).includes(f)))
-    && contaminants(c).every((f) => cls.faits.includes(f));
-
-  // Toutes les réponses possibles de l'étape : propositions du nœud, branches « libre » du nœud,
-  // options de la phase (saisieLibre.parPhase, ex. scenarios/lea.libre.js), branches globales de la phase.
-  function candidatsDuNoeud(n, cls) {
-    // options de la phase suivante : l'enquêteur anticipe (ex. une question de rapport pendant les règles) ;
-    // elles mènent à l'étape d'entrée de cette phase (saisieLibre.entrees)
-    const ordre = PHASES.map((p) => p.cle), suivante = ordre[ordre.indexOf(n.phase) + 1];
-    const entree = (sc.saisieLibre.entrees || {})[suivante];
-    const anticipees = entree ? ((sc.saisieLibre.parPhase || {})[suivante] || [])
-      .map((c, i) => ({ c: c.suivant == null ? { ...c, suivant: entree } : c, cle: "P" + suivante + i, origine: "phase-suivante" }))
-      .filter(({ c }) => !(c.si && c.si.noeuds)) : [];
-    return [
-      ...anticipees,
-      ...n.choix.map((c, i) => ({ c, cle: i, origine: "noeud" })),
-      ...(n.libre || []).map((c, i) => ({ c, cle: "L" + i, origine: "libre" })),
-      ...((sc.saisieLibre.parPhase || {})[n.phase] || []).map((c, i) => ({ c, cle: "P" + n.phase + i, origine: "phase" })),
-      // questions naturelles valables à toutes les étapes (« Tu comprends ? », « Tu as froid ? »…)
-      ...(sc.saisieLibre.partout || []).map((c, i) => ({ c, cle: "Z" + i, origine: "partout" })),
-      ...(sc.saisieLibre.globaux || []).map((c, i) => ({ c, cle: "G" + i, origine: "global" })).filter(({ c }) => !c.phases || c.phases.includes(n.phase))
-    ].filter(({ c }) => verifie(c.si) && (!c.typesLibres || c.typesLibres.includes(cls.type)));
-  }
-
-  /* ---------- saut d'étapes : la question correspond à une étape plus loin dans le protocole ---------- */
-  const ORDRE = PHASES.map((p) => p.cle);
-  const verifieA = (si, id) => { const ici = noeudId; noeudId = id; try { return verifie(si); } finally { noeudId = ici; } };
-  // mots porteurs de sens (« anniversaire », « chien »…) : une relance sans contenu (« Et après ? ») ne fait jamais sauter
-  const VIDES_SAUT = /^(racont|parl|ensuit|apres|pass|tout|chos|dir|dis|quoi|moment|debut|fin|plus|maintenant|veu|peu|bien|alor)/;
-  const contenu = (t) => CL().tokens(t).filter((w) => w.length > 3 && !VIDES_SAUT.test(w));
-
-  // Toutes les réponses des étapes PLUS LOIN que l'étape en cours, avec deux limites :
-  //  - jamais vers le récit des faits (il ne commence que lorsque l'enfant révèle lui-même) ;
-  //  - dans la transition, seulement son étape d'entrée : les autres (enfant bloquée, réponse à une
-  //    suggestion…) n'ont de sens que dans leur contexte.
-  const cibles = (s) => (s == null ? [] : typeof s === "string" ? [s] : s.map((x) => x.vers));
-  const versRecit = (c) => [...cibles(c.suivant), ...(c.selon || []).flatMap((v) => cibles(v.suivant))]
-    .some((id) => sc.noeuds[id] && sc.noeuds[id].phase === "recit");
-  function candidatsSaut(n, cls) {
-    const ici = ORDRE.indexOf(n.phase), out = [], entrees = sc.saisieLibre.entrees || {};
-    for (const [id, x] of Object.entries(sc.noeuds)) {
-      if (x.fin || x.phase === "recit" || ORDRE.indexOf(x.phase) <= ici) continue;
-      if (x.phase === "transition" && id !== (entrees.transition || "transition")) continue;
-      x.choix.forEach((c, i) => out.push({ c, cle: i, origine: "saut", source: id }));
-      (x.libre || []).forEach((c, i) => out.push({ c, cle: "L" + i, origine: "saut", source: id }));
-    }
-    const suivante = ORDRE[ici + 1];
-    for (const [ph, liste] of Object.entries(sc.saisieLibre.parPhase || {})) {
-      const k = ORDRE.indexOf(ph);
-      if (k <= ici || ph === "recit" || (ph === suivante && entrees[ph])) continue;   // la phase suivante est déjà proposée
-      const premier = Object.keys(sc.noeuds).find((id) => sc.noeuds[id].phase === ph && !sc.noeuds[id].fin);
-      liste.forEach((c, i) => out.push({ c, cle: "P" + ph + i, origine: "saut", source: (c.si && c.si.noeuds) ? c.si.noeuds[0] : entrees[ph] || premier }));
-    }
-    return out.filter((x) => x.source && !versRecit(x.c) && verifieA(x.c.si, x.source) && (!x.c.typesLibres || x.c.typesLibres.includes(cls.type)));
-  }
-
-  async function chercherSaut(n, cls, texte, v, S) {
-    const mots = contenu(texte);
-    if (!mots.length) return null;
-    const cands = candidatsSaut(n, cls).filter((x) => {
-      x.textes = textesDe(x.c);
-      return x.textes.some((t) => contenu(t).some((w) => mots.includes(w)));
-    });
-    if (!cands.length) return null;
-    const sims = await similarites(cands, texte, v);
-    cands.forEach((x, i) => { x.sim = sims[i]; });
-    const b = CL().classerDansNoeud(texte, cls, cands, S, sc.saisieLibre.noms).filter((x) => compatible(x.c, cls))[0];
-    return b && b.s >= S.saut && b.brut >= S.sautBrut ? b : null;
-  }
-
-  const RAISONS = {
-    regles: "les règles de base (« je ne sais pas », correction, promesse) évitent que l'enfant devine ou invente",
-    rapport: "le rapport met l'enfant en confiance et l'habitue à parler longuement",
-    memoire: "l'entraînement à la mémoire épisodique prépare un récit détaillé",
-    transition: "la transition laisse l'enfant introduire lui-même le sujet",
-    recit: "le récit libre recueille les faits avec les mots de l'enfant"
-  };
-  const nomPhase = (k) => (PHASES.find((p) => p.cle === k) || {}).nom || k;
-
-  // on reprend l'audition à l'étape trouvée (les phases sautées sont calculées d'après l'étape d'arrivée)
-  function sauterVers(id) {
-    const de = ORDRE.indexOf(sc.noeuds[noeudId].phase);
-    noeudId = id;
-    return { de, vers: null, sautees: [] };
-  }
-
-  // Phrases du scénario analysées en arrière-plan, par petits paquets avec des pauses : la page reste fluide,
-  // et la recherche dans tout l'arbre est ensuite immédiate.
-  let prechauffage = null, derniereSaisie = 0;
-  document.addEventListener("input", () => { derniereSaisie = Date.now(); }, true);
-  document.addEventListener("keydown", () => { derniereSaisie = Date.now(); }, true);
-  // (dès le couloir pour le dossier sélectionné : l'analyse avance pendant la lecture des post-it)
-  function prechauffer() {
-    const cible = sc && !$("#ecran-jeu").hidden ? sc : window.SCENARIOS[cleCourante];
-    if (!iaPrete() || !cible || !cible.saisieLibre || !options.libre || prechauffage === cible) return;
-    prechauffage = cible;
-    const sl = cible.saisieLibre, tous = [];
-    const textes = (c) => [String(c.question || "").replace(/\{P\}/g, cible.prenom), ...(c.exemples || []), ...((sl.reformulations || {})[c.question] || [])].filter(Boolean);
-    const ici = cible === sc && noeudId && sc.noeuds[noeudId] ? sc.noeuds[noeudId].phase : null;
-    const debut = Math.max(0, PHASES.findIndex((p) => p.cle === ici));
-    for (const { cle: ph } of PHASES.slice(debut)) {   // dans l'ordre du protocole, à partir de l'étape en cours
-      for (const x of Object.values(cible.noeuds)) if (x.phase === ph) [...(x.choix || []), ...(x.libre || [])].forEach((c) => tous.push(...textes(c)));
-      ((sl.parPhase || {})[ph] || []).forEach((c) => tous.push(...textes(c)));
-      (sl.globaux || []).filter((c) => !c.phases || c.phases.includes(ph)).forEach((c) => tous.push(...textes(c)));
-    }
-    (sl.partout || []).forEach((c) => tous.push(...textes(c)));
-    const reste = [...new Set(tous)].filter((t) => !window.IA.connu(t));
-    const pas = async () => {
-      if (prechauffage !== cible || !reste.length) return;
-      // l'enquêteur tape : on se met en veille pour ne pas ralentir la saisie
-      if (Date.now() - derniereSaisie < 2000) return setTimeout(pas, 600);
-      await window.IA.vecteurs(reste.splice(0, 2)).catch(() => {});
-      setTimeout(pas, 150);
-    };
-    setTimeout(pas, 1500);
-  }
-
-  // Ordre : réponse de l'étape quasi identique → question courante (« Comment ça va ? ») → réponse de l'étape
-  // la mieux classée (sens + type + mots-clés) → invitation/soutien : sortie de l'étape la plus proche
-  // → réaction générique selon le type de question.
-  async function interpreter(texte, n) {
-    let ia = null;
-    if (iaPrete()) { try { ia = await window.IA.analyser(texte); } catch (e) { console.warn(e); } }
-    const v = ia && ia.v, S = v ? SEUILS.ia : SEUILS.regles;
-    const motsEnfant = new Set(journal.flatMap((j) => (j.enfant ? CL().tokens(j.enfant) : [])));
-    const regles = CL().classer(texte, { prenom: sc.prenom, contaminations: sc.saisieLibre.contaminations, faitsConnus: faits, motsEnfant });
-    const cls = CL().fusionner(regles, ia);
-    const base = { texte, cls };
-    if (cls.type === "silence") return { c: choixSilence(n), cle: null, libre: base };
-
-    // question précise déjà posée (même reformulée) : l'enfant croit que sa réponse était fausse
-    if (cls.type === "directive" || cls.type === "choix") {
-      const deja = journal.filter((j) => j.question && (j.type === "directive" || j.type === "choix")).map((j) => j.question);
-      if (deja.length && Math.max(...(await similaritesTextes(deja, texte, v))) >= (v ? 0.93 : 0.9))
-        return { c: repetition({ type: cls.type }), cle: null, libre: base };
-    }
-
-    const cands = candidatsDuNoeud(n, cls);
-    const sims = await similarites(cands, texte, v);
-    cands.forEach((x, i) => { x.sim = sims[i]; x.textes = textesDe(x.c); });
-    const classement = CL().classerDansNoeud(texte, cls, cands, S, sc.saisieLibre.noms).filter((x) => compatible(x.c, cls));
-    // un mot-clé explicite d'une réponse de l'étape l'emporte sur les branches globales et les questions courantes
-    const parMot = classement.find((x) => x.origine !== "global" && x.mots && x.s >= S.proche);
-    let m = parMot || classement[0] || null;
-
-    if (!parMot && !(m && m.s >= S.exact)) {
-      if (cls.intention && !(m && m.s >= S.proche && m.s >= cls.intention.score))
-        return { c: intention(cls.intention.def, n), cle: "I" + cls.intention.id, libre: { ...base, intention: true } };
-      // incompréhensible « par construction » (jargon, double question, trop longue) : l'enfant est perdu ;
-      // une phrase simplement inclassable peut encore correspondre à une réponse de l'étape
-      if ((cls.type === "incomprise" && cls.raison !== "inclassable") || !(m && m.s >= S.proche)) m = null;
-    }
-    // la question correspond peut-être à une étape plus loin (l'enquêteur va trop vite) : on y saute
-    // si l'étape en cours n'a rien de proche, ou si l'étape plus loin correspond nettement mieux
-    if (!parMot && !(m && m.s >= S.exact) && !(cls.type === "incomprise" && cls.raison !== "inclassable")) {
-      let saut = await chercherSaut(n, cls, texte, v, S);
-      if (saut && m && saut.brut < m.brut + 0.05) saut = null;
-      if (saut) {
-        const cleSaut = /^[GIP]/.test(String(saut.cle)) ? saut.cle : saut.source + "#" + saut.cle;
-        const reste = saut.c.suivant == null || saut.c.suivant === saut.source;
-        if (reste && utilises.has(cleSaut)) return { c: repetition(saut.c), cle: null, libre: base };
-        let c = saut.c;
-        if (c.exige && !new RegExp(c.exige.motif).test(CL().norm(texte))) c = { ...c, ...c.exige.sinon };
-        return { c, cle: saut.cle, libre: { ...base, rapproche: tpl(saut.c.question || ""), saut: saut.source } };
-      }
-    }
-    // invitation ou soutien sans correspondance : la sortie de l'étape du même genre la plus proche en sens
-    // (une invitation ouverte vaut pour n'importe quel sujet déjà en cours)
-    const famille = { invitation: ["invitation", "invitation_indicee"], invitation_indicee: ["invitation", "invitation_indicee"], soutien: ["soutien"] }[cls.type];
-    if (!m && famille && !cls.citationFausse && !(cls.type === "soutien" && soutiens.has(noeudId))) {
-      // uniquement les sorties propres à l'étape (pas les options anticipées de la phase suivante)
-      const sorties = cands.filter((x) => (x.origine === "noeud" || x.origine === "libre") && famille.includes(x.c.type) && x.c.suivant != null && x.c.suivant !== noeudId);
-      if (sorties.length) m = sorties.reduce((a, x) => (x.sim > a.sim ? x : a));
-    }
-    if (!m) return { c: generique(cls, n, texte), cle: null, libre: base };
-
-    const reste = m.c.suivant == null || m.c.suivant === noeudId;
-    if (reste && utilises.has(cleUtilisee(m.cle))) return { c: repetition(m.c), cle: null, libre: base };
-    let c = m.c;
-    if (c.exige && !new RegExp(c.exige.motif).test(CL().norm(texte))) c = { ...c, ...c.exige.sinon };
-    return { c, cle: m.cle, libre: { ...base, rapproche: tpl(m.c.question || ""), franc: m.s >= (v ? 0.85 : 0.8) } };
-  }
-
-  // petites questions courantes (« Comment ça va ? »), définies dans js/ia-exemples.js
-  function intention(def, n) {
-    if (def.commeSilence) {
-      const s = choixSilence(n);
-      return { ...s, type: def.type, feedback: def.feedback + " " + s.feedback };
-    }
-    const { id, exemples, exigeQuestion, ...c } = def;
-    return { effets: {}, ...c };
-  }
-
-  // branches globales (G…), options de phase (P…) et intentions (I…) valent pour toute l'audition, les autres pour leur nœud
-  const cleUtilisee = (cle) => (/^[GIP]/.test(String(cle)) ? cle : noeudId + "#" + cle);
-
-  function repetition(c) {
-    return {
-      type: c.type, qualite: -1, effets: { stress: 1, confiance: -1 },
-      reponse: { texte: "Je te l'ai déjà dit…", expression: "inquiet" },
-      feedback: "Question déjà posée : la répéter laisse croire à l'enfant que sa première réponse était fausse, et l'incite à la changer.",
-      mieux: "Tu as dit [ses mots]. Raconte-moi plus sur ça."
-    };
-  }
-
-  const INCOMPRIS = {
-    double: "Deux questions en une : l'enfant ne sait pas à laquelle répondre.",
-    longue: "Question trop longue : l'enfant décroche avant la fin.",
-    inclassable: "Formulation trop ambiguë : l'enfant ne comprend pas ce que vous attendez."
-  };
-
-  // Réaction quand aucune proposition du scénario ne correspond.
-  // Un nœud peut la remplacer avec parType: { <type ou sousType>: index de choix | objet, defaut: … }
-  function generique(cls, n, texte) {
-    const sortie = (types) => [...(n.libre || []), ...n.choix]
-      .find((c) => types.includes(c.type) && verifie(c.si) && c.suivant != null && c.suivant !== noeudId);
-    const acquiesce = etat.stress >= 5 || etat.confiance <= 3;
-    let g;
-    switch (cls.type) {
-      case "incomprise":
-        g = { qualite: -1, effets: { stress: 1 },
-          reponse: { texte: ["Je comprends pas…", "Hein ?", "Euh… c'est quoi ?"][journal.length % 3], expression: "inquiet", didascalie: "{P} fronce les sourcils, perdu{e}." },
-          feedback: cls.raison === "jargon"
-            ? `Vocabulaire d'adulte (« ${cls.jargon} ») : l'enfant ne comprend pas. Utilisez des mots simples, idéalement les siens.`
-            : INCOMPRIS[cls.raison] };
-        break;
-      case "invitation":
-      case "invitation_indicee": {
-        if (cls.citationFausse) {
-          g = { qualite: -1, effets: { confiance: -1 }, reponse: { texte: "J'ai pas dit ça…", expression: "inquiet" },
-            feedback: "Vous attribuez à {P} des mots qu'{il} n'a pas prononcés. Une invitation indicée reprend uniquement ses mots exacts." };
-          break;
-        }
-        const c = sortie(["invitation"]) || sortie(["invitation_indicee"]);
-        g = c ? { ...c } : { qualite: 1, reponse: { texte: "Euh… raconter quoi ?", expression: "neutre" },
-          feedback: "Invitation ouverte, mais trop vague à ce stade : l'enfant ne sait pas de quoi vous voulez qu'{il} parle." };
-        break;
-      }
-      case "directive":
-        g = cls.pourquoi
-          ? { qualite: 0, effets: { stress: 1, confiance: -1 }, reponse: { texte: "Je sais pas… parce que.", expression: "triste" },
-              feedback: "« Pourquoi » demande à l'enfant d'expliquer une intention ou un comportement : ça sonne comme un reproche, et {il} n'a pas de réponse." }
-          : { qualite: 0, reponse: "Je sais pas.",
-              feedback: "Question directive sur un point que {P} n'a pas évoqué : {il} n'a pas de réponse. Les questions directives portent sur ce que l'enfant a déjà dit." };
-        break;
-      case "choix":
-        g = acquiesce
-          ? { qualite: -1, reponse: { texte: "…Oui.", expression: "inquiet" },
-              feedback: "Question fermée : {P} répond « oui ». Souvenir réel ou envie de vous faire plaisir ? Impossible de le savoir. Transformez-la en invitation." }
-          : { qualite: 0, reponse: "Je sais pas.",
-              feedback: "Question fermée sur un point que l'enfant n'a pas abordé : la réponse n'apporte rien. Préférez une invitation ouverte." };
-        break;
-      case "suggestive":
-        g = { qualite: -2, effets: { stress: 1 },
-          reponse: acquiesce ? { texte: "…Oui.", expression: "inquiet" } : { texte: "…Je sais pas. Peut-être.", expression: "inquiet" },
-          feedback: cls.faits.length
-            ? "Vous introduisez des éléments que {P} n'a pas donnés : " + cls.faits.map((f) => "« " + sc.faits[f].texte + " »").join(", ") + ". Ce qu'{il} dira ensuite sur ces points est contaminé."
-            : "La formulation suggère la réponse attendue (« hein ? », « c'est ça ? », « tu as dû… ») : l'enfant acquiesce pour vous faire plaisir." };
-        break;
-      case "soutien":
-        g = soutiens.has(noeudId)
-          ? { qualite: 0, reponse: "…", feedback: "{P} a déjà été rassuré{e} : répéter la réassurance sans relancer fait tourner l'audition en rond. Relancez par une invitation." }
-          : { effets: { stress: -2, confiance: 1 }, didascalieApres: "{P} prend une grande inspiration. Ses épaules se relâchent un peu.",
-              feedback: "Propos de soutien non suggestif : vous reconnaissez l'effort et la difficulté, sans évoquer les faits ni rien promettre.",
-              selon: [{ si: { stress_min: 5 }, qualite: 2 }] };
-        break;
-      case "inadaptee":
-        g = { qualite: -1, effets: { stress: 1, confiance: -1 }, reponse: { texte: "…D'accord.", expression: "inquiet" }, feedback: TYPES.inadaptee.conseil };
-        break;
-      default:
-        g = { qualite: 1, reponse: "D'accord.", feedback: "Consigne comprise, mais elle ne fait pas avancer l'audition à ce stade." };
-    }
-    const pt = n.parType || {};
-    const sur = pt[cls.sousType] ?? pt[cls.type] ?? (cls.type !== "incomprise" ? pt.defaut : null);
-    if (sur != null) {
-      const o = typeof sur === "number" ? n.choix[sur] : sur;
-      g = { ...g, ...o };
-      // on change de nœud sans réplique imposée : c'est la réplique du nœud d'arrivée qui compte
-      if (o.suivant != null && !("reponse" in o)) delete g.reponse;
-      if (g.exige && !new RegExp(g.exige.motif).test(CL().norm(texte))) g = { ...g, ...g.exige.sinon };
-    }
-    return { ...g, type: cls.type };
-  }
-
-  function appliquerLibre(c, libre) {
-    const { cls } = libre;
-    c.question = libre.texte;
-    c.__libre = { texte: libre.texte, type: cls.type, generique: !libre.rapproche && !libre.intention, franc: !!libre.franc || !!libre.saut };
-    if (cls.faits.length) c.faits = c.type === "suggestive" ? [...cls.faits] : [...new Set([...[].concat(c.faits || []), ...cls.faits])];
-    if (cls.ton === "dur") {
-      c.effets.stress = (c.effets.stress || 0) + 2;
-      c.effets.confiance = (c.effets.confiance || 0) - 1;
-      c.qualite = Math.max(-2, c.qualite - 1);
-      c.feedback += " Ton brusque : l'enfant se crispe. Une voix calme et des phrases posées l'aident à parler.";
-      c.didascalieApres = "{P} sursaute au ton de votre voix.";
-    } else if (cls.ton === "doux" && c.qualite >= 0 && etat.confiance < 6) {
-      c.effets.confiance = (c.effets.confiance || 0) + 1;
-      c.feedback += tpl(" Ton chaleureux : {P} se sent écouté{e}.");
-    }
-  }
-
-  // avec le LLM, aucune formulation du scénario n'est mise en avant : seulement le type de question et l'étape
-  function interpretationLibre(c, libre) {
-    if (libre.cls.type === "silence") return null;
-    let s = `Comprise comme : ${TYPES[c.type].nom.toLowerCase()}`;
-    if (libre.saut) s += ` · étape plus loin dans le protocole (« ${nomPhase(sc.noeuds[libre.saut].phase)} »)`;
-    if (libre.cls.ton === "dur") s += " · ton brusque";
-    else if (libre.cls.ton === "doux") s += " · ton chaleureux";
-    return s + (generatif(c) ? " · réponse libre de l'enfant" : " · réponse écrite du scénario (sans LLM)");
   }
 
   /* ---------- affichage de la scène ---------- */
@@ -902,37 +378,13 @@
   }
 
   /* ---------- console de l'enquêteur ---------- */
-  // Indices à la demande : l'état de l'enfant d'abord s'il le faut, puis ceux de l'étape (scénario), puis ceux de la phase
-  function indicesPour(n) {
-    const l = [];
-    if (etat.stress >= 7) l.push("{P} est très tendu{e} : ralentissez. Rassurez-{le} sans parler des faits avant toute nouvelle question.");
-    else if (etat.confiance <= 2) l.push("{P} est encore sur la réserve : prenez le temps de {le} mettre en confiance.");
-    const propres = ((sc.saisieLibre && sc.saisieLibre.indices) || sc.indices || {})[noeudId] || [];
-    return [...l, ...propres, ...(INDICES[n.phase] || [])].map(tpl);
-  }
-
-  function montrerIndice() {
-    const l = indicesPour(sc.noeuds[noeudId]);
-    if (indiceNoeud !== noeudId) { indiceNoeud = noeudId; indiceNiveau = 0; }
-    const k = Math.min(indiceNiveau, l.length - 1);
-    $("#indice").textContent = "💡 " + l[k];
-    $("#indice").hidden = false;
-    nbIndices++;
-    indiceNiveau = k + 1;
-    $("#btn-indice").textContent = indiceNiveau < l.length ? `💡 Indice plus précis (${indiceNiveau}/${l.length})` : "💡 Indice";
-  }
-
   function afficherConsole(n) {
-    $("#indice").hidden = true;
-    $("#btn-indice").hidden = !!n.fin;
-    $("#btn-indice").textContent = indiceNoeud === noeudId && indiceNiveau ? "💡 Indice suivant" : "💡 Besoin d'un indice ?";
     const ret = $("#retour");
     if (options.feedback && retour && retour.feedback) {
       const t = TYPES[retour.type];
       ret.className = "retour " + t.classe;
       ret.innerHTML = `
         <div class="retour-tete"><span class="badge">${t.nom}</span><span class="qualite q-${retour.qualite}">${QUALITES[retour.qualite]}</span></div>
-        ${retour.interpretation ? `<p class="interpretation">${echap(retour.interpretation)}</p>` : ""}
         <p>${echap(retour.feedback)}</p>
         ${retour.mieux && retour.qualite < 2 ? `<p class="mieux"><b>Plutôt :</b> « ${echap(retour.mieux)} »</p>` : ""}`;
       ret.hidden = false;
@@ -943,48 +395,6 @@
       zone.innerHTML = `<button class="btn principal" id="btn-debrief">Terminer l'audition et lire le débrief</button>`;
       $("#btn-debrief").onclick = afficherDebrief;
       $(".console").scrollTop = 0;
-      return;
-    }
-    if (modeLibre() && !llmUtilisable()) {
-      const p = echap(sc.prenom), L = window.LLM, e = L ? L.etat : "absent";
-      const msg = e === "chargement" || e === "inconnu"
-        ? `<p><b>${p} se prépare…</b> Le petit LLM qui la fait parler démarre (quelques secondes à une minute).</p>`
-        : e === "erreur"
-          ? `<p><b>Le petit LLM s'est arrêté</b> (souvent : pas assez de mémoire). Fermez les applications lourdes, puis relancez <code>python3 outils/lancer.py</code>.</p>`
-          : `<p><b>Le petit LLM n'est pas disponible.</b> Pour que ${p} réponde librement, ouvrez le jeu avec <code>python3 outils/lancer.py</code> (pas en double-cliquant sur index.html).</p>`;
-      zone.innerHTML = `<div class="attente-llm" data-etat="${e}">${msg}
-        ${e === "chargement" || e === "inconnu" ? "" : `<button class="btn" id="btn-scriptees">Jouer quand même avec les réponses écrites du scénario</button>`}</div>`;
-      const b = $("#btn-scriptees");
-      if (b) b.onclick = () => { options.scriptees = true; afficherConsole(n); };
-      $("#btn-silence").onclick = () => choisir(choixSilence(n), null);
-      consoleEnAttente = n;
-      return;
-    }
-    consoleEnAttente = null;
-    if (modeLibre()) {
-      const p = echap(sc.prenom);
-      zone.innerHTML = `
-        <form class="libre" id="form-libre">
-          <textarea id="saisie" rows="2" maxlength="400" aria-label="Ce que vous dites à ${p}"
-            placeholder="Tapez ce que vous dites à ${p}… (Entrée pour parler, Maj+Entrée pour aller à la ligne)"></textarea>
-          <button class="btn principal" type="submit">Dire</button>
-        </form>`;
-      const ta = $("#saisie");
-      $("#form-libre").onsubmit = async (e) => {
-        e.preventDefault();
-        const t = ta.value.trim();
-        if (!t || ta.disabled) { ta.focus(); return; }
-        ta.disabled = true;
-        try {
-          const r = await interpreter(t, n);
-          ta.disabled = false;
-          choisir(r.c, r.cle, r.libre);
-        } catch (err) { console.error(err); ta.disabled = false; }
-      };
-      ta.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#form-libre").requestSubmit(); } };
-      $("#btn-silence").onclick = () => choisir(choixSilence(n), null);
-      $(".console").scrollTop = 0;
-      ta.focus({ preventScroll: true });
       return;
     }
     const restePlace = (c) => c.suivant == null || c.suivant === noeudId;
@@ -1073,7 +483,6 @@
         <div><b>${contamines.length}</b><span>élément${contamines.length > 1 ? "s" : ""} contaminé${contamines.length > 1 ? "s" : ""}</span></div>
         <div><b>${phasesVues.size}/${PHASES.length}</b><span>phases du protocole</span></div>
         <div><b>${stressMax}/10</b><span>stress maximal de l'enfant</span></div>
-        <div><b>${nbIndices}</b><span>indice${nbIndices > 1 ? "s" : ""} demandé${nbIndices > 1 ? "s" : ""}</span></div>
       </div>
       <div class="deux">
         <section>
@@ -1105,10 +514,8 @@
           <li class="${t.classe}">
             <div class="j-tete"><span class="j-num">#${k + 1}</span><span class="badge">${t.nom}</span>
               <span class="qualite q-${j.qualite}">${QUALITES[j.qualite]}</span><span class="j-phase">${nomPhase(j.phase)}</span></div>
-            <p class="q">${j.question && j.type !== "silence" ? "« " + echap(j.question) + " »" : "(Vous laissez un silence.)"}</p>
-            ${j.interpretation ? `<p class="interp">${echap(j.interpretation)}</p>` : ""}
-            ${j.saut ? `<p class="saut-etapes">⚠ Étapes sautées : ${echap(j.saut.join(", "))}</p>` : ""}
-            ${j.enfant != null ? `<p class="r">${echap(sc.prenom)} : ${echap(j.enfant)}${j.didascalie ? " (" + echap(j.didascalie) + ")" : ""}${j.genere ? ' <span class="par-llm" title="Réplique formulée par le petit LLM à partir de la réponse prévue par le scénario">✎ LLM</span>' : ""}</p>` : ""}
+            <p class="q">${j.question ? "« " + echap(j.question) + " »" : "(Vous laissez un silence.)"}</p>
+            ${j.enfant != null ? `<p class="r">${echap(sc.prenom)} : ${echap(j.enfant)}${j.didascalie ? " (" + echap(j.didascalie) + ")" : ""}</p>` : ""}
             ${d.confiance || d.stress ? `<div class="deltas">${d.confiance ? `<span>Confiance ${d.confiance > 0 ? "+" : ""}${d.confiance}</span>` : ""}${d.stress ? `<span>Stress ${d.stress > 0 ? "+" : ""}${d.stress}</span>` : ""}</div>` : ""}
             <p class="fb">${echap(j.feedback)}</p>
             ${j.qualite < 2 ? `<p class="piste-nichd"><b>Ce que recommande le protocole</b>${j.mieux ? "Formulation possible : « " + echap(j.mieux) + " ». " : ""}${echap(t.conseil)}</p>` : ""}
@@ -1126,14 +533,12 @@
 
   function recommandations({ ratioOuv, ratioFaits, sugg, contamines, nbSoutiens, nbSilences, coups }) {
     const r = [];
-    if (coups.some((j) => j.saut)) r.push(["Ne pas brûler les étapes", "Vous êtes passé(e) plusieurs fois directement à une étape plus avancée. Chaque phase du protocole prépare la suivante : règles, rapport et entraînement au récit conditionnent la qualité du témoignage."]);
     if (!phasesVues.has("regles")) r.push(["Poser les règles de base", "Expliquez et testez avec un exemple concret « je ne sais pas », « je ne comprends pas », « tu peux me corriger », puis demandez une promesse simple de dire ce qui s'est vraiment passé."]);
     if (!phasesVues.has("rapport") || !phasesVues.has("memoire")) r.push(["Prendre le temps du rapport et de l'entraînement", "Le rapport (« Raconte-moi ce que tu aimes faire ») et le récit d'un événement neutre « du début à la fin » habituent l'enfant à parler longuement. Les sauter, c'est obtenir ensuite des réponses courtes."]);
     if (ratioOuv < 0.6) r.push(["Plus d'invitations ouvertes", "Visez une large majorité d'invitations. Épuisez le récit libre (« Raconte-moi tout », « Et ensuite ? », « Tu as parlé de [X], raconte-moi tout sur [X] ») avant toute question directive."]);
     if (contamines.length || sugg) r.push(["N'apporter aucune information", "Chaque élément introduit par vous (personne, lieu, geste, émotion, jugement) peut être repris par l'enfant et intégré à son souvenir. Pour la transition, commencez par « Dis-moi pourquoi tu es venu(e) me parler », puis n'évoquez qu'une source (« tu as parlé à… ») sans le contenu."]);
     if (stressMax >= 7 && nbSoutiens === 0) r.push(["Ralentir quand l'enfant se crispe", "Le stress est monté haut sans propos de soutien. Le protocole révisé recommande de reconnaître l'effort et la difficulté (« Tu m'aides beaucoup, prends ton temps »), voire de revenir brièvement au rapport, plutôt que d'enchaîner les questions."]);
     if (coups.some((j) => j.type === "inadaptee")) r.push(["Ni promesse, ni pression, ni doute", "Évitez « tu dois répondre », « tu es sûr(e) ? », « tu ne le reverras plus ». Ces propos poussent l'enfant à deviner, à changer sa réponse, ou créent des attentes que vous ne maîtrisez pas."]);
-    if (coups.filter((j) => j.type === "incomprise").length >= 2) r.push(["Des questions simples, une à la fois", "Plusieurs questions n'ont pas été comprises. Une seule question par phrase, courte, avec des mots d'enfant : pas de vocabulaire juridique (« agression », « circonstances »), pas de double question."]);
     if (nbSilences === 0) r.push(["Oser le silence", "Une pause de quelques secondes après une réponse, en restant attentif, invite souvent l'enfant à compléter spontanément son récit."]);
     else if (coups.filter((j) => j.type === "silence" && j.qualite <= 0).length >= 2) r.push(["Doser le silence", "Plusieurs silences sont tombés à plat : en introduction, face à un enfant stressé ou répétés, ils deviennent une pression. Le silence soutient le récit libre ; ailleurs, relancez."]);
     if (ratioFaits < 0.6) r.push(["Explorer chaque élément mentionné", "Des faits importants n'ont pas été recueillis. Utilisez les invitations indicées sur les détails donnés par l'enfant, la segmentation temporelle (« depuis [X] jusqu'à [Y] »), et demandez si c'est arrivé une fois ou plus d'une fois."]);
@@ -1165,10 +570,6 @@
       `<div class="postit fiche" style="--r:-1deg"><b>${echap(s.titre)}</b>${echap(s.contexte)}</div>` +
       (d.postits || []).map((p, i) =>
         `<div class="postit" style="--c:${COULEURS[i % COULEURS.length]};--r:${ROTATIONS[i % ROTATIONS.length]}deg;animation-delay:${0.08 * (i + 1)}s">${echap(p)}</div>`).join("");
-    const dispo = !!s.saisieLibre;
-    $("#opt-libre").disabled = !dispo;
-    $("#libre-note").textContent = dispo ? "(utilise une petite IA locale, ~120 Mo téléchargés une fois)" : "(pas encore disponible pour ce dossier)";
-    if (dispo) afficherEtatIA();
   }
 
   function entrer() {
@@ -1201,40 +602,9 @@
   rendreAccueil();
   $("#opt-feedback").onchange = (e) => (options.feedback = e.target.checked);
   $("#opt-jauges").onchange = (e) => { options.jauges = e.target.checked; if (etat) majJauges(); };
-  $("#opt-libre").onchange = (e) => {
-    options.libre = e.target.checked;
-    if (options.libre && window.IA) window.IA.charger().then(prechauffer);   // modèle et analyse des phrases pendant qu'on lit le dossier
-  };
-  function afficherEtatIA() {
-    if (!window.IA) return;
-    if (window.IA.etat === "pret") prechauffer();
-    const { etat, progression } = window.IA;
-    const local = window.IA.local;
-    const t = etat === "chargement" ? (local ? "IA : chargement depuis ce PC…" : `IA : téléchargement du modèle${progression ? " " + progression + " %" : "…"} (une seule fois)`)
-      : etat === "pret" ? `IA prête${local ? " (installée sur ce PC)" : ""} : vos phrases sont comprises par leur sens`
-      : etat === "erreur" ? "IA indisponible (hors ligne ?) : classement par règles" : "";
-    const L = window.LLM;
-    const tl = !L ? "" : L.etat === "pret" ? " · LLM prêt : l'enfant répond librement" : L.etat === "chargement" ? " · LLM : démarrage…"
-      : L.etat === "erreur" ? " · LLM arrêté (mémoire ?)" : " · pas de LLM";
-    if (consoleEnAttente && llmUtilisable() && !frappe && !$("#ecran-jeu").hidden) { prechaufferLLM(); afficherConsole(consoleEnAttente); }
-    const el = $("#etat-ia");
-    el.textContent = t + tl;
-    el.dataset.etat = etat;
-    el.hidden = !t || !modeLibreActif();
-    if (window.SCENARIOS[cleCourante].saisieLibre)
-      $("#libre-note").textContent = options.libre ? t : local && etat === "pret" ? "(IA installée sur ce PC : prête)" : "(utilise une petite IA locale, ~120 Mo téléchargés une fois)";
-  }
-  function modeLibreActif() { return options.libre && sc && !!sc.saisieLibre && !$("#ecran-jeu").hidden; }
-  if (window.LLM) { window.LLM.surChangement = afficherEtatIA; window.LLM.verifier(); }
-  if (window.IA) {
-    window.IA.surChangement = afficherEtatIA;
-    // IA installée sur ce PC : on la charge dès l'ouverture, elle est prête avant d'entrer dans la salle
-    window.IA.verifierLocal().then((ok) => { if (ok) window.IA.charger(); });
-  }
   $("#btn-commencer").onclick = entrer;
   $("#btn-entrer").onclick = entrer;
   $("#btn-quitter").onclick = retourCouloir;
-  $("#btn-indice").onclick = montrerIndice;
   $("#bulle").onclick = () => frappe && frappe.terminer();
   $("#btn-transcript").onclick = () => {
     const o = $("#transcript").classList.toggle("ouvert");
@@ -1250,7 +620,6 @@
 
   document.addEventListener("keydown", (e) => {
     if (document.querySelector("dialog[open]") || $("#ecran-jeu").hidden) return;
-    if (e.target.closest("textarea, input") || $(".console").classList.contains("occupee") && !frappe) return;
     if (frappe) {
       if (e.key === " " || e.key === "Enter") { e.preventDefault(); frappe.terminer(); }
       return;

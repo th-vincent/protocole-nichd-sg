@@ -7,10 +7,9 @@ const dir = path.join(__dirname, "..", "scenarios");
 for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".js"))) require(path.join(dir, f));
 
 // À garder synchronisé avec TYPES et PHASES dans js/moteur.js
-const TYPES = ["invitation", "invitation_indicee", "soutien", "directive", "choix", "suggestive", "consigne", "silence", "inadaptee", "incomprise"];
-const SOUS_TYPES = ["presentation", "salutation", "regles", "cloture", "defaut"];
+const TYPES = ["invitation", "invitation_indicee", "soutien", "directive", "choix", "suggestive", "consigne", "silence", "inadaptee"];
 const PHASES = ["introduction", "regles", "rapport", "memoire", "transition", "recit", "cloture"];
-const CLES_SI = ["noeuds", "confiance_min", "confiance_max", "stress_min", "stress_max", "contamination_min", "contamination_max", "faits", "sans_faits", "marques", "sans_marques"];
+const CLES_SI = ["confiance_min", "confiance_max", "stress_min", "stress_max", "contamination_min", "contamination_max", "faits", "sans_faits", "marques", "sans_marques"];
 const EXPRESSIONS = ["neutre", "detendu", "inquiet", "triste", "ferme"];
 let erreurs = 0, avertissements = 0;
 const err = (m) => { erreurs++; console.log("  ✗ " + m); };
@@ -30,7 +29,6 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
     Object.keys(c).filter((k) => !CLES_SI.includes(k)).forEach((k) => err(`${ou} : condition inconnue "${k}"`));
     [...(c.faits || []), ...(c.sans_faits || [])].forEach((f) => fait(f, ou));
     [...(c.marques || []), ...(c.sans_marques || [])].forEach((m) => marquesLues.push([m, ou]));
-    (c.noeuds || []).forEach((id) => { if (!N[id]) err(`${ou} : nœud "${id}" inconnu dans si.noeuds`); });
   };
   const replique = (r, ou) => {
     if (r == null || typeof r === "string") return;
@@ -41,19 +39,12 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
     });
   };
   // un choix (ou une réaction au silence) et ses variantes `selon`
-  const regex = (m, ou) => { try { new RegExp(m); } catch (e) { err(`${ou} : expression régulière invalide (${e.message})`); } };
-  // partiel = parType / exige.sinon : complète une réaction générique, type et feedback facultatifs
-  const choix = (c, ou, id, estSilence, partiel) => {
-    if (!estSilence && !partiel && !TYPES.includes(c.type)) err(`${ou} : type inconnu "${c.type}"`);
-    if (partiel && c.type && !TYPES.includes(c.type)) err(`${ou} : type inconnu "${c.type}"`);
-    if (!estSilence && !partiel && !c.question) err(`${ou} : question manquante`);
-    if (!partiel && !c.feedback) err(`${ou} : feedback manquant`);
-    if (c.motsCles) regex(c.motsCles, ou);
-    if (c.exemples && (!Array.isArray(c.exemples) || c.exemples.some((e) => typeof e !== "string"))) err(`${ou} : exemples doit être une liste de phrases`);
-    (c.typesLibres || []).forEach((t) => { if (!TYPES.includes(t)) err(`${ou} : typesLibres inconnu "${t}"`); });
-    (c.phases || []).forEach((ph) => { if (!PHASES.includes(ph)) err(`${ou} : phase inconnue "${ph}"`); });
+  const choix = (c, ou, id, estSilence) => {
+    if (!estSilence && !TYPES.includes(c.type)) err(`${ou} : type inconnu "${c.type}"`);
+    if (!estSilence && !c.question) err(`${ou} : question manquante`);
+    if (!c.feedback) err(`${ou} : feedback manquant`);
     if (c.qualite != null && ![-2, -1, 0, 1, 2].includes(c.qualite)) err(`${ou} : qualite doit valoir -2, -1, 0, 1 ou 2`);
-    if (!estSilence && !partiel && c.suivant == null && c.reponse == null) avert(`${ou} : ni suivant ni reponse (l'enfant répétera sa réplique)`);
+    if (!estSilence && c.suivant == null && c.reponse == null) avert(`${ou} : ni suivant ni reponse (l'enfant répétera sa réplique)`);
     si(c.si, ou);
     [].concat(c.faits || []).forEach((f) => fait(f, ou));
     [].concat(c.marque || []).forEach((m) => marquesPosees.add(m));
@@ -64,7 +55,6 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
       [].concat(v.faits || []).forEach((f) => fait(f, `${ou}.selon[${k}]`));
       if (v.suivant != null) t.push(...cibles(v.suivant, id));
     });
-    if (c.exige) { regex(c.exige.motif, ou + ".exige"); t.push(...choix(c.exige.sinon || {}, ou + ".exige.sinon", id, false, true)); }
     t.forEach((x) => { if (!N[x]) err(`${ou} : nœud suivant "${x}" introuvable`); });
     return t;
   };
@@ -81,66 +71,7 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
     if (!(n.choix || []).length) { err(`${id} : ni choix ni fin`); continue; }
     n.choix.forEach((c, i) => aretes[id].push(...choix(c, `${id}[${i}]`, id, false)));
     if (n.silence) aretes[id].push(...choix(n.silence, `${id}.silence`, id, true));
-    (n.libre || []).forEach((c, i) => aretes[id].push(...choix(c, `${id}.libre[${i}]`, id, false)));
-    for (const [k, v] of Object.entries(n.parType || {})) {
-      if (!TYPES.includes(k) && !SOUS_TYPES.includes(k)) err(`${id}.parType : clé inconnue "${k}"`);
-      if (typeof v === "number") { if (!n.choix[v]) err(`${id}.parType.${k} : choix n°${v} inexistant`); }
-      else aretes[id].push(...choix(v, `${id}.parType.${k}`, id, false, true));
-    }
     if (!aretes[id].some((x) => x !== id)) err(`${id} : aucun choix ne permet de quitter ce nœud`);
-  }
-  // saisie libre : lexique de contamination et branches globales
-  const sl = sc.saisieLibre;
-  if (sl) {
-    (sl.contaminations || []).forEach((c, i) => {
-      regex(c.motif, `contaminations[${i}]`);
-      fait(c.fait, `contaminations[${i}]`);
-      if (sc.faits[c.fait] && sc.faits[c.fait].fiable) err(`contaminations[${i}] : "${c.fait}" devrait être un fait fiable:false`);
-      (c.sauf || []).forEach((f) => fait(f, `contaminations[${i}].sauf`));
-    });
-    for (const [phase, id] of Object.entries(sl.entrees || {})) {
-      if (!PHASES.includes(phase)) err(`entrees : phase inconnue "${phase}"`);
-      if (!N[id]) err(`entrees.${phase} : nœud "${id}" introuvable`);
-      else if (N[id].phase !== phase) err(`entrees.${phase} : le nœud "${id}" n'est pas de cette phase`);
-      // les nœuds de la phase précédente peuvent y mener
-      const prec = PHASES[PHASES.indexOf(phase) - 1];
-      Object.keys(N).filter((x) => N[x].phase === prec).forEach((x) => aretes[x].push(id));
-    }
-    (sl.partout || []).forEach((c, i) => {
-      if (c.si && c.si.noeuds) err(`partout[${i}] : une question « partout » ne doit pas cibler des nœuds`);
-      for (const id of Object.keys(N)) if (!N[id].fin) aretes[id].push(...choix(c, `partout[${i}]`, id, false).filter((x) => x !== id));
-    });
-    for (const [phase, liste] of Object.entries(sl.parPhase || {})) {
-      if (!PHASES.includes(phase)) err(`parPhase : phase inconnue "${phase}"`);
-      liste.forEach((c, i) => {
-        const ids = Object.keys(N).filter((id) => N[id].phase === phase && !N[id].fin && (!c.si || !c.si.noeuds || c.si.noeuds.includes(id)));
-        if (!ids.length) err(`parPhase.${phase}[${i}] : aucun nœud de cette phase ne peut la proposer`);
-        ids.forEach((id) => aretes[id].push(...choix(c, `parPhase.${phase}[${i}]`, id, false).filter((x) => x !== id)));
-        if (!ids.length) choix(c, `parPhase.${phase}[${i}]`, null, false);
-      });
-    }
-    (sl.globaux || []).forEach((c, i) => {
-      if (!c.motsCles) err(`globaux[${i}] : motsCles manquant`);
-      for (const [id, n] of Object.entries(N)) {
-        if (n.fin || (c.phases && !c.phases.includes(n.phase))) continue;
-        aretes[id].push(...choix(c, `globaux[${i}]`, id, false).filter((x) => x !== id));
-      }
-    });
-  }
-  // reformulations : chaque clé doit être la question exacte d'une option existante
-  if (sl && sl.reformulations) {
-    const questions = new Set();
-    for (const n of Object.values(N)) [...(n.choix || []), ...(n.libre || [])].forEach((c) => questions.add(c.question));
-    Object.values(sl.parPhase || {}).forEach((l) => l.forEach((c) => questions.add(c.question)));
-    (sl.globaux || []).forEach((c) => questions.add(c.question));
-    (sl.partout || []).forEach((c) => questions.add(c.question));
-    let nb = 0;
-    for (const [q, l] of Object.entries(sl.reformulations)) {
-      if (!questions.has(q)) err(`reformulations : aucune option n'a pour question « ${q.slice(0, 60)}… »`);
-      if (!Array.isArray(l) || l.some((x) => typeof x !== "string")) err(`reformulations « ${q.slice(0, 40)}… » : liste de phrases attendue`);
-      else nb += l.length;
-    }
-    console.log(`  ${nb} reformulations pour ${Object.keys(sl.reformulations).length} questions`);
   }
   marquesLues.forEach(([m, ou]) => { if (!marquesPosees.has(m)) avert(`${ou} : la marque "${m}" n'est jamais posée`); });
 

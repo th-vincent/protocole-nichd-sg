@@ -43,7 +43,6 @@
           <p class="fiche-titre">Mode d'entraînement</p>
           <label><input type="checkbox" id="opt-feedback" checked> Retour pédagogique après chaque intervention</label>
           <label><input type="checkbox" id="opt-jauges" checked> Afficher la confiance et le stress de l'enfant</label>
-          <label><input type="checkbox" id="opt-libre"> <span>Saisie libre : vous tapez vos questions vous-même, sans propositions <small id="libre-note"></small></span></label>
         </div>
       </section>
 
@@ -274,12 +273,9 @@
       <p class="phase-courante">Phase : <b id="nom-phase"></b></p>
     </div>
     <p class="attente" id="attente" hidden>L'enfant parle… <span>(cliquez sur la bulle ou appuyez sur Espace pour afficher toute sa réponse)</span></p>
-    <p id="indice" class="indice" hidden></p>
     <div id="zone-choix" class="zone-choix"></div>
     <div class="console-pied">
       <button class="btn-silence" id="btn-silence"><kbd>0</kbd> Ne rien dire, laisser un silence</button>
-      <button class="btn-indice" id="btn-indice" title="Une consigne générale si vous ne savez pas quoi dire">💡 Besoin d'un indice ?</button>
-      <span class="etat-ia" id="etat-ia" hidden></span>
       <div id="jauges" class="jauges">
         <div class="jauge"><span>Confiance</span><span class="piste"><i id="j-confiance" class="conf"></i></span><b id="v-confiance"></b></div>
         <div class="jauge"><span>Stress</span><span class="piste"><i id="j-stress" class="stress"></i></span><b id="v-stress"></b></div>
@@ -445,14 +441,7 @@
 </dialog>
 
 <script src="scenarios/lea.js"></script>
-<script src="scenarios/lea.libre.js"></script>
-<script src="scenarios/lea.naturel.js"></script>
-<script src="scenarios/lea.reformulations.js"></script>
 <script src="scenarios/noah.js"></script>
-<script src="js/classifieur.js"></script>
-<script src="js/ia-exemples.js"></script>
-<script src="js/ia.js"></script>
-<script src="js/llm.js"></script>
 <script src="js/moteur.js"></script>
 </body>
 </html>
