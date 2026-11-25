@@ -17,6 +17,7 @@ import http.server
 import importlib.util
 import os
 import pathlib
+import signal
 import socketserver
 import subprocess
 import sys
@@ -36,6 +37,7 @@ class Gestionnaire(http.server.SimpleHTTPRequestHandler):
     extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map,
                       ".wasm": "application/wasm", ".mjs": "text/javascript", ".js": "text/javascript"}
     llm_actif = False
+    llm_processus = None
 
     def log_message(self, *args):
         pass  # console silencieuse
@@ -56,7 +58,8 @@ class Gestionnaire(http.server.SimpleHTTPRequestHandler):
                     pret = True
                 except (urllib.error.URLError, OSError):
                     pass
-            etat = "pret" if pret else ("chargement" if self.llm_actif else "absent")
+            plante = self.llm_processus is not None and self.llm_processus.poll() is not None
+            etat = "pret" if pret else ("erreur" if plante else "chargement" if self.llm_actif else "absent")
             return self.repondre(200, ('{"etat": "%s", "modele": "%s"}' % (etat, telecharger_ia.LLM_FICHIER)).encode())
         return super().do_GET()
 
@@ -69,6 +72,8 @@ class Gestionnaire(http.server.SimpleHTTPRequestHandler):
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 return self.repondre(200, r.read())
+        except BrokenPipeError:
+            return None  # la page a abandonné la requête (délai dépassé)
         except (urllib.error.URLError, OSError) as e:
             return self.repondre(502, ('{"erreur": "%s"}' % str(e).replace('"', "'")).encode())
 
@@ -82,7 +87,7 @@ def demarrer_llm():
     return subprocess.Popen(
         [str(serveur), "-m", str(modele), "--host", "127.0.0.1", "--port", str(PORT_LLM),
          "-c", "4096", "-t", str(max(1, (os.cpu_count() or 4))), "--no-webui"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(serveur.parent))
+        stdout=subprocess.DEVNULL, stderr=open(RACINE / "modeles" / "llm" / "llama-server.log", "w"), cwd=str(serveur.parent))
 
 
 def main():
@@ -94,12 +99,18 @@ def main():
         telecharger_ia.main()
 
     llm = None if sans_llm else demarrer_llm()
+    if llm:  # Ctrl+C, fermeture du terminal ou kill : le LLM s'arrête avec le lanceur
+        signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+        if hasattr(signal, "SIGHUP"):
+            signal.signal(signal.SIGHUP, lambda *_: sys.exit(0))
     Gestionnaire.llm_actif = llm is not None
+    Gestionnaire.llm_processus = llm
 
     gestionnaire = functools.partial(Gestionnaire, directory=str(RACINE))
     for port in range(8000, 8020):
         try:
             socketserver.ThreadingTCPServer.daemon_threads = True
+            socketserver.ThreadingTCPServer.allow_reuse_address = True  # relance juste après un arrêt
             serveur = socketserver.ThreadingTCPServer(("127.0.0.1", port), gestionnaire)
             break
         except OSError:
@@ -114,7 +125,7 @@ def main():
     with serveur:
         try:
             serveur.serve_forever()
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit):
             print("\nArrêt.")
         finally:
             if llm:

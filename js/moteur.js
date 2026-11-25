@@ -85,8 +85,10 @@
   let etat, noeudId, journal, faits, marques, utilises, soutiens, phasesVues;
   let silencesSuite = 0, stressMax = 0, dernierTexte = null, retour = null, frappe = null;
   let indiceNoeud = null, indiceNiveau = 0, nbIndices = 0, racontees = new Set();
-  const options = { feedback: true, jauges: true, libre: false };
-  const modeLibre = () => options.libre && !!sc.saisieLibre;
+  const options = { feedback: true, jauges: true, libre: false, scriptees: false };   // scriptees : saisie libre SANS LLM, choisie explicitement
+  const modeLibre = () => options.libre && !!(sc && sc.saisieLibre);
+  const llmUtilisable = () => options.scriptees || !!(window.LLM && window.LLM.pret());
+  let consoleEnAttente = null;   // nœud dont la console attend le LLM
 
   /* ---------- textes accordés (« {P} est détendu{e} ») ---------- */
   function tpl(s) {
@@ -224,6 +226,7 @@
   function demarrer(c) {
     arreterFrappe();
     cle = c; sc = window.SCENARIOS[c];
+    prechaufferLLM();
     etat = { confiance: 3, stress: 4, contamination: 0, ...sc.etatInitial };
     journal = []; faits = new Set(); marques = new Set(); utilises = new Set(); soutiens = new Set(); phasesVues = new Set();
     silencesSuite = 0; stressMax = etat.stress; dernierTexte = null; retour = null; noeudId = null;
@@ -337,13 +340,24 @@
     const historique = journal.filter((j) => j.question && j.enfant != null && j.type !== "silence").slice(-4).map((j) => [j.question, j.enfant]);
     reflexion(true);
     const t = await window.LLM.jouer({
-      prenom: sc.prenom, age: String(sc.age || "").split("·")[0].trim(), feminin: sc.genre === "f", personnage: sl.personnage, histoire: sl.histoire,
-      historique, question: L.texte, consigne: consignes.join(" "),
+      ...profilLLM(), historique, question: L.texte, consigne: consignes.join(" "),
       faux: sl.faux, sensibles: sl.sensibles, avantFaits: AVANT_FAITS.includes(n.phase) || n.phase === "transition"
     });
     reflexion(false);
     if (t) { r.texte = t; r.genere = true; }
+    else {   // jamais de réplique écrite à la place : l'enfant se tait, et on dit pourquoi
+      r.texte = "…"; r.genere = true;
+      r.didascalie = tpl("({P} ne répond pas : le petit LLM n'a pas pu formuler de réponse. Reformulez ou répétez la question.)");
+      window.LLM.verifier();
+    }
     if (n.phase === "recit") noterRacontees(r.texte);
+  }
+
+  const profilLLM = () => ({ prenom: sc.prenom, age: String(sc.age || "").split("·")[0].trim(), feminin: sc.genre === "f",
+    personnage: sc.saisieLibre.personnage, histoire: sc.saisieLibre.histoire });
+  // à l'entrée dans la salle : le LLM lit déjà la fiche de l'enfant (mise en cache), la 1re réponse est rapide
+  function prechaufferLLM() {
+    if (modeLibre() && window.LLM && window.LLM.pret()) window.LLM.prechauffer(profilLLM());
   }
 
   /* ---------- mémoire de l'enfant (pour le LLM) ---------- */
@@ -443,7 +457,7 @@
     retour = {
       noeud: noeudId, phase: n.phase, question: c.question ? tpl(c.question) : null, type: c.type,
       qualite: c.qualite, feedback: c.feedback, mieux: c.mieux ? tpl(c.mieux) : null, enfant: null, didascalie: null, delta,
-      interpretation: libre ? (generatif(c) ? interpretationLibre(c, libre) : interpretationTexte(c, libre)) : null,
+      interpretation: libre ? interpretationLibre(c, libre) : null,
       saut: saut && saut.sautees.length ? saut.sautees.map(nomPhase) : null
     };
     journal.push(retour);
@@ -790,18 +804,7 @@
     if (libre.saut) s += ` · étape plus loin dans le protocole (« ${nomPhase(sc.noeuds[libre.saut].phase)} »)`;
     if (libre.cls.ton === "dur") s += " · ton brusque";
     else if (libre.cls.ton === "doux") s += " · ton chaleureux";
-    return s + " · réponse libre de l'enfant";
-  }
-
-  function interpretationTexte(c, libre) {
-    if (libre.cls.type === "silence") return null;
-    let s = libre.rapproche ? `Rapprochée de la formulation « ${libre.rapproche} »` : "Aucune formulation proche dans le scénario : réaction générique selon le type de question";
-    if (libre.cls.intention && !libre.rapproche) s = "Reconnue comme une question courante : réaction adaptée";
-    if (libre.saut) s = `Correspond à une étape plus loin dans le protocole (« ${nomPhase(sc.noeuds[libre.saut].phase)} ») : « ${libre.rapproche} »`;
-    if (libre.cls.parIA || libre.cls.intention) s += " · classée par l'IA";
-    if (libre.cls.ton === "dur") s += " · ton brusque";
-    else if (libre.cls.ton === "doux") s += " · ton chaleureux";
-    return s;
+    return s + (generatif(c) ? " · réponse libre de l'enfant" : " · réponse écrite du scénario (sans LLM)");
   }
 
   /* ---------- affichage de la scène ---------- */
@@ -942,6 +945,22 @@
       $(".console").scrollTop = 0;
       return;
     }
+    if (modeLibre() && !llmUtilisable()) {
+      const p = echap(sc.prenom), L = window.LLM, e = L ? L.etat : "absent";
+      const msg = e === "chargement" || e === "inconnu"
+        ? `<p><b>${p} se prépare…</b> Le petit LLM qui la fait parler démarre (quelques secondes à une minute).</p>`
+        : e === "erreur"
+          ? `<p><b>Le petit LLM s'est arrêté</b> (souvent : pas assez de mémoire). Fermez les applications lourdes, puis relancez <code>python3 outils/lancer.py</code>.</p>`
+          : `<p><b>Le petit LLM n'est pas disponible.</b> Pour que ${p} réponde librement, ouvrez le jeu avec <code>python3 outils/lancer.py</code> (pas en double-cliquant sur index.html).</p>`;
+      zone.innerHTML = `<div class="attente-llm" data-etat="${e}">${msg}
+        ${e === "chargement" || e === "inconnu" ? "" : `<button class="btn" id="btn-scriptees">Jouer quand même avec les réponses écrites du scénario</button>`}</div>`;
+      const b = $("#btn-scriptees");
+      if (b) b.onclick = () => { options.scriptees = true; afficherConsole(n); };
+      $("#btn-silence").onclick = () => choisir(choixSilence(n), null);
+      consoleEnAttente = n;
+      return;
+    }
+    consoleEnAttente = null;
     if (modeLibre()) {
       const p = echap(sc.prenom);
       zone.innerHTML = `
@@ -1195,7 +1214,9 @@
       : etat === "pret" ? `IA prête${local ? " (installée sur ce PC)" : ""} : vos phrases sont comprises par leur sens`
       : etat === "erreur" ? "IA indisponible (hors ligne ?) : classement par règles" : "";
     const L = window.LLM;
-    const tl = !L ? "" : L.etat === "pret" ? " · LLM prêt : l'enfant répond librement" : L.etat === "chargement" ? " · LLM : démarrage…" : "";
+    const tl = !L ? "" : L.etat === "pret" ? " · LLM prêt : l'enfant répond librement" : L.etat === "chargement" ? " · LLM : démarrage…"
+      : L.etat === "erreur" ? " · LLM arrêté (mémoire ?)" : " · pas de LLM";
+    if (consoleEnAttente && llmUtilisable() && !frappe && !$("#ecran-jeu").hidden) { prechaufferLLM(); afficherConsole(consoleEnAttente); }
     const el = $("#etat-ia");
     el.textContent = t + tl;
     el.dataset.etat = etat;

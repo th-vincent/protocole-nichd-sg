@@ -12,7 +12,7 @@ python3 outils/lancer.py
 
 Au premier lancement, le lanceur installe les IA de la saisie libre sur le PC, une seule fois : l'IA de compréhension (~140 Mo) et le petit LLM (llama.cpp + Qwen2.5 1,5B, ~1,1 Go). Il démarre ensuite le LLM et un petit serveur local, puis ouvre le navigateur.
 
-Le LLM a besoin d'environ 1,2 Go de mémoire libre : fermez les applications gourmandes, ou lancez `python3 outils/lancer.py --sans-llm` (les réponses de l'enfant sont alors celles écrites dans le scénario). L'IA se charge alors depuis le disque dès l'ouverture de la page, en quelques secondes et sans connexion.
+Le LLM a besoin d'environ 1,2 Go de mémoire libre : fermez les applications gourmandes, ou lancez `python3 outils/lancer.py --sans-llm` (en saisie libre, le jeu propose alors de jouer avec les réponses écrites du scénario). Si le LLM plante (souvent par manque de mémoire), la salle l'indique ; son journal est dans `modeles/llm/llama-server.log`. L'IA se charge alors depuis le disque dès l'ouverture de la page, en quelques secondes et sans connexion.
 
 Il faut un serveur local, car un navigateur interdit à une page ouverte en double-clic de lire d'autres fichiers du disque. Pour installer l'IA sans lancer le jeu : `python3 outils/telecharger-ia.py`.
 
@@ -144,12 +144,16 @@ En saisie libre, quand le LLM est lancé par `outils/lancer.py`, **l'enfant rép
 
 **L'arbre reste le cadre pédagogique** : phases, saut d'étapes, note, retour NICHD, contaminations détectées dans la question. **Les faits recueillis sont ceux que l'enfant dit vraiment** (`saisieLibre.detection`). Le retour indique seulement comment la question a été comprise (type, étape).
 
-**Garde-fous** : une réponse est régénérée une fois, puis remplacée par la réplique du scénario en secours, si elle :
+**Jamais de réplique écrite en cachette** : en saisie libre, tant que le LLM démarre, la saisie attend (« Léa se prépare… »). S'il est absent (page ouverte en double-clic, `--sans-llm`) ou arrêté, un message le dit. On ne joue avec les réponses écrites du scénario que si on le choisit explicitement. Le retour ne cite jamais de formulation du scénario.
+
+**Garde-fous** : une réponse est régénérée une fois si elle :
 - sort du personnage (vouvoiement, consigne recopiée…) ;
 - affirme un fait faux que la question n'a pas suggéré (`saisieLibre.faux` : frappée, poussée, plusieurs fois…) ;
 - aborde les faits avant la transition.
 
-Les réponses sont limitées à deux phrases. Comptez environ 10 s par réponse sur un PC modeste. Le débrief marque les réponses générées (✎ LLM).
+Si la seconde tentative échoue aussi, l'enfant se tait (« … ») avec une mention discrète, et l'enquêteur peut reformuler. Si l'enfant reprend son propre prénom (« Bonjour Léa. »), ce prénom est retiré.
+
+À l'entrée dans la salle, le LLM lit déjà la fiche de l'enfant, ce qui rend la première réponse plus rapide. Les réponses sont limitées à deux phrases. Comptez environ 10 s par réponse sur un PC modeste. Le débrief marque les réponses générées (✎ LLM).
 
 ## Indices pour l'enquêteur
 

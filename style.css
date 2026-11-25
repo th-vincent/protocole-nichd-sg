@@ -393,3 +393,7 @@ kbd{font:600 12px Lexend,sans-serif;border:1px solid currentColor;border-radius:
   .barre{grid-template-columns:minmax(0,1fr) 28px}.barre .piste{grid-column:1/-1;grid-row:2}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+/* saisie libre : en attente du LLM (jamais de repli silencieux sur les réponses écrites) */
+.attente-llm{padding:12px 14px;border:1px dashed var(--doux);border-radius:10px;font-size:14px;line-height:1.5}
+.attente-llm p{margin:0 0 8px}.attente-llm code{font-size:13px}
+.attente-llm[data-etat=chargement] p::before,.attente-llm[data-etat=inconnu] p::before{content:"⏳ "}
