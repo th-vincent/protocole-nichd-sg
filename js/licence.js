@@ -92,9 +92,6 @@
     essais++;
     $("#login-mdp").value = "";
     $("#login-mdp").focus();
-    ecran.querySelector(".login-carte").classList.remove("secoue");
-    void ecran.offsetWidth;
-    ecran.querySelector(".login-carte").classList.add("secoue");
     if (essais >= ESSAIS_MAX) {
       essais = 0; finBlocage = Date.now() + BLOCAGE * 1000;
       err.textContent = `Identifiant ou mot de passe incorrect. Accès bloqué ${BLOCAGE} s.`;
