@@ -19,7 +19,8 @@ window.SCENARIOS.jade = {
   prenom: "Jade",
   age: "5 ans · témoin",
   genre: "f",
-  contexte: "Cas simulé, d'après l'étude « Sam Stone » (Leichtman & Ceci, 1995). Un parent accuse un visiteur d'avoir abîmé du matériel de la classe. Jade était présente pendant la visite. Audition filmée en salle Mélanie.",
+  contexte: "Un parent accuse un visiteur d'avoir abîmé du matériel de la classe. Jade était présente pendant la visite. Audition filmée en salle Mélanie.",
+  source: "Cas simulé, adapté de l'étude « Sam Stone » (Leichtman & Ceci, 1995, Developmental Psychology) sur la suggestibilité des jeunes enfants. Les noms et détails propres au jeu sont inventés.",
   depart: "intro",
   etatInitial: { confiance: 3, stress: 3, contamination: 0 },
   dossier: {

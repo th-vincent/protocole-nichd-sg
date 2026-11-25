@@ -4,6 +4,7 @@
  *
  * ─── Scénario ───
  *   titre, prenom, age, genre ("f" | "m"), contexte, depart, etatInitial { confiance, stress } (0–10)
+ *   source          : (optionnel) origine du cas (fictif, adapté d'une étude…), lisible au survol du « i » de la fiche
  *   dossier.postits : notes affichées sur le tableau en liège (ce que l'enquêteur sait avant d'entrer)
  *   apparence       : { peau, cheveux, pull, pullFonce, pantalon, chaussure, coiffure: "couettes"|"court", accessoire: ""|"lapin" }
  *   soutiens        : (optionnel) phrases de soutien proposées automatiquement quand le stress atteint 7
@@ -47,6 +48,7 @@ window.SCENARIOS.lea = {
   prenom: "Léa",
   age: "8 ans · victime",
   genre: "f",
+  source: "Cas fictif, écrit pour la formation. Il reprend une situation typique de révélation à l'école, avec un enfant victime en âge de faire un récit détaillé.",
   contexte: "Signalement de l'enseignante : Léa aurait été blessée au bras par un adulte du centre de loisirs. Audition filmée en salle Mélanie.",
   depart: "intro",
   etatInitial: { confiance: 3, stress: 4, contamination: 0 },

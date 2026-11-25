@@ -571,7 +571,9 @@
     const s = window.SCENARIOS[cleCourante];
     const d = s.dossier || {};
     $("#postits").innerHTML =
-      `<div class="postit fiche" style="--r:-1deg"><b>${echap(s.titre)}</b>${echap(s.contexte)}</div>` +
+      `<div class="postit fiche" style="--r:-1deg"><b>${echap(s.titre)}</b>${echap(s.contexte)}` +
+      (s.source ? `<span class="info-source" tabindex="0" role="button" aria-label="Origine du cas : ${echap(s.source)}">i<span class="bulle-source" role="tooltip">${echap(s.source)}</span></span>` : "") +
+      `</div>` +
       (d.postits || []).map((p, i) =>
         `<div class="postit" style="--c:${COULEURS[i % COULEURS.length]};--encre:${ENCRES[i % ENCRES.length]};--r:${ROTATIONS[i % ROTATIONS.length]}deg;--dx:${DECALAGES[i % DECALAGES.length][0]}px;--dy:${DECALAGES[i % DECALAGES.length][1]}px;animation-delay:${0.08 * (i + 1)}s">${echap(p)}</div>`).join("");
   }

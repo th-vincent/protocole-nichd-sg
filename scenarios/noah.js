@@ -12,6 +12,7 @@ window.SCENARIOS.noah = {
   prenom: "Noah",
   age: "6 ans · témoin",
   genre: "m",
+  source: "Cas fictif, écrit pour la formation. Il reprend des difficultés fréquentes chez un jeune témoin : conflit de loyauté et récit déjà influencé par les adultes.",
   contexte: "Plainte de la mère pour violences conjugales. Noah était présent au domicile au moment des faits. Audition filmée en salle Mélanie.",
   depart: "intro",
   etatInitial: { confiance: 2, stress: 5, contamination: 0 },

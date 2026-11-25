@@ -407,3 +407,11 @@ html.verrouille body > :not(#ecran-login):not(script){display:none!important}
 .compte{display:flex;align-items:center;gap:8px}
 .compte-nom{font-size:13px;color:#c4c8e4}
 .compte-nom::before{content:"● ";color:var(--t-ouv)}
+
+/* « i » de la fiche du dossier : origine du cas, au survol (ou au focus clavier) */
+.info-source{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:italic 700 14px/1 Georgia,serif;color:#5b5f78;border:1.5px solid #9aa0b8;background:rgba(255,255,255,.6);cursor:help;user-select:none}
+.info-source:hover,.info-source:focus-visible{color:#fff;background:var(--canard);border-color:var(--canard);outline:none}
+.bulle-source{position:absolute;z-index:20;top:calc(100% + 8px);right:-6px;width:min(260px,70vw);padding:10px 12px;border-radius:10px;background:var(--indigo);color:#eef0fa;font:400 13px/1.45 "Atkinson Hyperlegible",system-ui,sans-serif;font-style:normal;text-align:left;box-shadow:0 10px 24px rgba(0,0,0,.35);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility .15s;pointer-events:none}
+.bulle-source::before{content:"";position:absolute;top:-6px;right:12px;border:6px solid transparent;border-top:0;border-bottom-color:var(--indigo)}
+.info-source:hover .bulle-source,.info-source:focus-visible .bulle-source{opacity:1;visibility:visible;transform:none}
+.postit.fiche b{padding-right:26px}
