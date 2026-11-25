@@ -43,6 +43,24 @@
   };
   const QUALITES = { "2": "Conforme", "1": "Acceptable", "0": "Discutable", "-1": "À éviter", "-2": "Grave" };
 
+  // Indices : consignes générales par phase, de la plus vague à la plus précise (jamais la phrase toute faite)
+  const INDICES = {
+    introduction: ["Essayez de mettre {P} à l'aise.", "Présentez-vous : qui vous êtes et en quoi consiste votre travail.",
+      "Pensez à expliquer simplement à quoi sert la caméra, sans parler de la raison de sa venue."],
+    regles: ["Essayez d'introduire les consignes de base.", "{P} doit savoir qu'{il} peut dire « je ne sais pas », « je ne comprends pas », et vous corriger si vous vous trompez.",
+      "Testez chaque règle par un petit exemple concret, puis demandez-{lui} de promettre de ne dire que ce qui s'est vraiment passé."],
+    rapport: ["Essayez de mieux connaître {P} et de {le} mettre en confiance.", "Intéressez-vous à ce qu'{il} aime, avec des questions ouvertes (« Raconte-moi… »).",
+      "Reprenez ses propres mots pour l'inviter à développer, plutôt que d'enchaîner les questions fermées."],
+    memoire: ["Entraînez {P} à raconter un souvenir en détail.", "Choisissez un moment récent et neutre, et demandez-{lui} de tout raconter, du début à la fin.",
+      "Relancez avec « Et ensuite ? », puis dites-{lui} que c'est exactement comme ça que vous avez besoin qu'{il} raconte."],
+    transition: ["Amenez doucement le sujet de l'audition, sans rien suggérer.", "Laissez {P} dire {lui}-même pourquoi {il} est là.",
+      "Si {il} ne se lance pas, évoquez seulement la personne à qui {il} a parlé, jamais ce qui s'est passé."],
+    recit: ["Laissez {P} raconter avec ses mots.", "Relancez par des invitations ouvertes (« Et ensuite ? ») et reprenez ses mots pour approfondir.",
+      "Explorez chaque détail qu'{il} a donné ; pensez aussi à demander si c'est arrivé une fois ou plusieurs, et qui a su en premier."],
+    cloture: ["Préparez la fin de l'audition.", "Demandez s'il y a autre chose à ajouter, et si {P} a des questions.",
+      "Remerciez-{le} pour ses efforts, puis terminez sur un sujet neutre."]
+  };
+
   const SOUTIENS_DEFAUT = [
     "Prends ton temps. Tu fais beaucoup d'efforts, et ça m'aide vraiment.",
     "Je vois que c'est difficile. On a tout le temps, je suis là pour t'écouter.",
@@ -66,6 +84,7 @@
   let sc = null, cle = null;
   let etat, noeudId, journal, faits, marques, utilises, soutiens, phasesVues;
   let silencesSuite = 0, stressMax = 0, dernierTexte = null, retour = null, frappe = null;
+  let indiceNoeud = null, indiceNiveau = 0, nbIndices = 0;
   const options = { feedback: true, jauges: true, libre: false };
   const modeLibre = () => options.libre && !!sc.saisieLibre;
 
@@ -208,6 +227,7 @@
     etat = { confiance: 3, stress: 4, contamination: 0, ...sc.etatInitial };
     journal = []; faits = new Set(); marques = new Set(); utilises = new Set(); soutiens = new Set(); phasesVues = new Set();
     silencesSuite = 0; stressMax = etat.stress; dernierTexte = null; retour = null; noeudId = null;
+    indiceNoeud = null; indiceNiveau = 0; nbIndices = 0;
     document.body.classList.add("en-salle");
     $("#barre-haut").hidden = true;
     $("#ecran-accueil").hidden = true;
@@ -345,7 +365,9 @@
     ia:     { exact: 0.9, proche: 0.6, saut: 0.66, sautBrut: 0.72, globalSansMots: 0.8, bonusType: 0.1, motsCles: 0.75, bonusMots: 0.1, maluMots: 0.05 },
     regles: { exact: 0.8, proche: 0.5, saut: 0.55, sautBrut: 0.45, globalSansMots: 9, bonusType: 0.12, motsCles: 0.6, bonusMots: 0.2, maluMots: 0.15 }
   };
-  const textesDe = (c) => [tpl(c.question || ""), ...(c.exemples || [])].filter(Boolean);
+  // une option est reconnue par sa question, ses `exemples` et ses reformulations (scenarios/lea.reformulations.js)
+  const textesDe = (c) => [tpl(c.question || ""), ...(c.exemples || []),
+    ...((sc.saisieLibre && sc.saisieLibre.reformulations || {})[c.question] || [])].filter(Boolean);
 
   // similarité brute entre la phrase tapée et une proposition (sa question et ses éventuels `exemples`)
   async function similarites(candidats, texte, v) {
@@ -455,9 +477,12 @@
     if (!iaPrete() || !sc || !sc.saisieLibre || !options.libre || prechauffage === sc) return;
     prechauffage = sc;
     const sl = sc.saisieLibre, tous = [];
-    for (const x of Object.values(sc.noeuds)) [...(x.choix || []), ...(x.libre || [])].forEach((c) => tous.push(...textesDe(c)));
-    Object.values(sl.parPhase || {}).forEach((l) => l.forEach((c) => tous.push(...textesDe(c))));
-    (sl.globaux || []).forEach((c) => tous.push(...textesDe(c)));
+    const debut = Math.max(0, PHASES.findIndex((p) => noeudId && sc.noeuds[noeudId] && p.cle === sc.noeuds[noeudId].phase));
+    for (const { cle: ph } of PHASES.slice(debut)) {   // dans l'ordre du protocole, à partir de l'étape en cours
+      for (const x of Object.values(sc.noeuds)) if (x.phase === ph) [...(x.choix || []), ...(x.libre || [])].forEach((c) => tous.push(...textesDe(c)));
+      ((sl.parPhase || {})[ph] || []).forEach((c) => tous.push(...textesDe(c)));
+      (sl.globaux || []).filter((c) => !c.phases || c.phases.includes(ph)).forEach((c) => tous.push(...textesDe(c)));
+    }
     const reste = [...new Set(tous)].filter((t) => !window.IA.connu(t));
     const pas = async () => {
       if (prechauffage !== sc || !reste.length) return;
@@ -756,7 +781,30 @@
   }
 
   /* ---------- console de l'enquêteur ---------- */
+  // Indices à la demande : l'état de l'enfant d'abord s'il le faut, puis ceux de l'étape (scénario), puis ceux de la phase
+  function indicesPour(n) {
+    const l = [];
+    if (etat.stress >= 7) l.push("{P} est très tendu{e} : ralentissez. Rassurez-{le} sans parler des faits avant toute nouvelle question.");
+    else if (etat.confiance <= 2) l.push("{P} est encore sur la réserve : prenez le temps de {le} mettre en confiance.");
+    const propres = ((sc.saisieLibre && sc.saisieLibre.indices) || sc.indices || {})[noeudId] || [];
+    return [...l, ...propres, ...(INDICES[n.phase] || [])].map(tpl);
+  }
+
+  function montrerIndice() {
+    const l = indicesPour(sc.noeuds[noeudId]);
+    if (indiceNoeud !== noeudId) { indiceNoeud = noeudId; indiceNiveau = 0; }
+    const k = Math.min(indiceNiveau, l.length - 1);
+    $("#indice").textContent = "💡 " + l[k];
+    $("#indice").hidden = false;
+    nbIndices++;
+    indiceNiveau = k + 1;
+    $("#btn-indice").textContent = indiceNiveau < l.length ? `💡 Indice plus précis (${indiceNiveau}/${l.length})` : "💡 Indice";
+  }
+
   function afficherConsole(n) {
+    $("#indice").hidden = true;
+    $("#btn-indice").hidden = !!n.fin;
+    $("#btn-indice").textContent = indiceNoeud === noeudId && indiceNiveau ? "💡 Indice suivant" : "💡 Besoin d'un indice ?";
     const ret = $("#retour");
     if (options.feedback && retour && retour.feedback) {
       const t = TYPES[retour.type];
@@ -888,6 +936,7 @@
         <div><b>${contamines.length}</b><span>élément${contamines.length > 1 ? "s" : ""} contaminé${contamines.length > 1 ? "s" : ""}</span></div>
         <div><b>${phasesVues.size}/${PHASES.length}</b><span>phases du protocole</span></div>
         <div><b>${stressMax}/10</b><span>stress maximal de l'enfant</span></div>
+        <div><b>${nbIndices}</b><span>indice${nbIndices > 1 ? "s" : ""} demandé${nbIndices > 1 ? "s" : ""}</span></div>
       </div>
       <div class="deux">
         <section>
@@ -1046,6 +1095,7 @@
   $("#btn-commencer").onclick = entrer;
   $("#btn-entrer").onclick = entrer;
   $("#btn-quitter").onclick = retourCouloir;
+  $("#btn-indice").onclick = montrerIndice;
   $("#bulle").onclick = () => frappe && frappe.terminer();
   $("#btn-transcript").onclick = () => {
     const o = $("#transcript").classList.toggle("ouvert");

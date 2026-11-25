@@ -21,6 +21,22 @@
   // Sujets de l'enquête que le LLM ne doit jamais aborder de lui-même (regex sur le texte sans accents)
   sl.sensibles = "kevin|centre|animateur|\\bbras\\b|marque|serr|attrap|frapp|\\btap(e|ait)\\b|pouss|\\bmal\\b|fache|photo|mercredi|gronde";
 
+  // Indices propres à certaines étapes (s'ajoutent aux consignes générales de la phase, définies dans le moteur)
+  sl.indices = {
+    intro: ["Léa ne vous connaît pas encore : commencez par la mettre en confiance."],
+    regles_test: ["Léa a compris la première règle. Il en reste d'autres à poser et à tester."],
+    rapport_court: ["Léa répond par des mots isolés : invitez-la à développer ce qu'elle vient de dire."],
+    transition_bloque: ["Léa n'arrive pas à se lancer. Ne forcez pas et n'apportez aucune information.",
+      "Rassurez-la, puis évoquez seulement la personne à qui elle a parlé."],
+    recit_suggestif: ["Une suggestion vient d'être faite : revenez à une invitation ouverte, sans reprendre vos propres mots."],
+    recit_contamine: ["Léa se ferme. La priorité est de l'apaiser, pas d'obtenir des détails."],
+    recit_ferme: ["Léa ne veut plus parler. Respectez-le : rassurez-la, ou faites une pause sur un sujet qu'elle aime."],
+    recit_4: ["Léa a parlé de sa maman et d'une photo : il y a peut-être plus à apprendre sur ce moment-là."],
+    recit_5: ["Pensez à savoir qui a été au courant en premier."],
+    cloture_question: ["Léa vous pose une question : répondez honnêtement, sans rien promettre."],
+    cloture_neutre: ["Terminez sur un sujet neutre et agréable pour Léa."]
+  };
+
   // étape d'arrivée quand l'enquêteur pose une question de la phase suivante
   sl.entrees = { regles: "regles", rapport: "rapport", transition: "transition", cloture: "cloture" };
 
@@ -164,6 +180,8 @@
         "Invitation ouverte, mais la famille peut être un sujet sensible : en rapport, préférez les loisirs."),
       o("Raconte-moi ta chambre.", "invitation", 2, { texte: "Elle est violette. Y a mon lit, mon bureau pour dessiner, et plein de posters de chevaux.", expression: "detendu" },
         "Invitation ouverte et concrète : l'enfant décrit avec plaisir.", { effets: { confiance: 1 } }),
+      o("Raconte-moi ce que tu fais le week-end.", "invitation", 2, { texte: "Le samedi j'ai danse. Et le dimanche, des fois, on va chez mamie.", expression: "detendu" },
+        "Invitation ouverte sur un sujet neutre : bien.", { effets: { confiance: 1 }, exemples: ["Tu fais quoi de beau le week-end ?", "Le samedi et le dimanche, tu fais quoi ?"] }),
       o("Raconte-moi tes dernières vacances.", "invitation", 2, { texte: "On est allés chez mamie à la campagne. Le voisin avait un poney, je lui donnais des carottes.", expression: "detendu" },
         "Invitation ouverte : bon entraînement au récit.", { effets: { confiance: 1 } }),
       o("Raconte-moi une journée normale à l'école, du matin au soir.", "invitation", 2, "Le matin maman m'emmène. On fait des maths, après la récré, après la cantine… et l'après-midi on fait de la peinture.",
@@ -525,6 +543,30 @@
       "Sujet neutre et ouvert pour terminer : idéal.", { si: { noeuds: ["cloture_neutre"] }, effets: { stress: -2 }, suivant: "fin" }),
     o("Tu vas voir Hugo ce soir ?", "choix", 1, { texte: "Oui, il va encore vouloir faire la course !", expression: "detendu" },
       "Sujet neutre et familier pour finir.", { si: { noeuds: ["cloture_neutre"] }, effets: { stress: -1 }, suivant: "fin" }),
+    o("On a bientôt fini.", "consigne", 1, "D'accord.",
+      "Annoncer la fin rassure l'enfant.", { exemples: ["C'est presque fini.", "On arrive à la fin."] }),
+    o("Tu as été très patiente.", "soutien", 1, "…Merci.",
+      "Encouragement sur l'effort, sans jugement sur le contenu.", { exemples: ["Merci d'avoir été patiente.", "Tu as été très calme."] }),
+    o("Est-ce que tu es fatiguée ?", "choix", 1, [{ si: { stress_min: 6 }, texte: "…Un peu.", expression: "triste" }, { texte: "Oui, un peu." }],
+      "Prendre des nouvelles en fin d'audition : bien.", { exemples: ["T'es fatiguée ?", "Tu es crevée ?"] }),
+    o("Ta maman va venir te chercher.", "consigne", 1, "D'accord.",
+      "Information concrète et rassurante.", { exemples: ["Maman arrive.", "On va aller retrouver ta maman."] }),
+    o("Si tu as une question plus tard, tu pourras la poser.", "consigne", 2, "D'accord.",
+      "Laisser la porte ouverte : bonne pratique.", { exemples: ["Même après, tu peux poser des questions.", "Tu pourras toujours me demander des choses plus tard."] }),
+    o("Qu'est-ce que tu as pensé de ce moment ensemble ?", "directive", 1, "C'était un peu long. Mais ça va.",
+      "Recueillir le ressenti de l'enfant sur l'audition : utile, sans insister.", { exemples: ["Ça t'a plu de parler avec moi ?", "Comment tu as trouvé ce moment ?"] }),
+    o("On a parlé longtemps, tu as été super.", "soutien", 0, "…Merci.",
+      "Féliciter pour le résultat valide le contenu ; remerciez plutôt pour l'effort.", { exemples: ["Tu as très bien parlé.", "T'as été top."] }),
+    o("Tu sais, ce qui s'est passé n'est pas de ta faute.", "inadaptee", 0, "…D'accord.",
+      "Rassurant, mais c'est un jugement sur les faits : l'enquêteur reste neutre, même en clôture.", { exemples: ["Ce n'est pas de ta faute.", "Tu n'es responsable de rien."] }),
+    o("Je vais t'accompagner jusqu'à ta maman.", "consigne", 2, { texte: "D'accord !", expression: "detendu" },
+      "Raccompagner l'enfant : une fin concrète et apaisée.", { si: { noeuds: ["cloture_neutre"] }, suivant: "fin", exemples: ["Viens, je te ramène à ta maman.", "On va rejoindre maman ensemble."] }),
+    o("Qu'est-ce que tu vas manger ce soir ?", "directive", 2, { texte: "Des pâtes, j'espère !", expression: "detendu" },
+      "Sujet neutre et quotidien pour finir : l'enfant repart apaisée.", { si: { noeuds: ["cloture_neutre"] }, effets: { stress: -1 }, suivant: "fin", exemples: ["Tu manges quoi ce soir ?", "C'est quoi le menu ce soir ?"] }),
+    o("Tu as encore des choses à me demander ?", "consigne", 2, undefined,
+      "Laisser l'enfant poser ses questions : conforme.", { si: { noeuds: ["cloture"] }, suivant: "cloture_question", exemples: ["Tu as une question pour moi ?", "Tu voudrais savoir quelque chose ?"] }),
+    o("Je vais réfléchir à ta question avec d'autres adultes.", "consigne", 2, "D'accord.",
+      "Honnête et rassurant, sans promesse.", { si: { noeuds: ["cloture_question"] }, suivant: "cloture_neutre", exemples: ["On va en parler entre adultes.", "D'autres grandes personnes vont m'aider à te répondre."] }),
     o("Tu me montres comment tu dessines un cheval avant de partir ?", "consigne", 2, { texte: "D'accord !", expression: "detendu", didascalie: "Léa attrape un feutre sur la table basse." },
       "Terminer par une activité qu'elle aime : elle repart apaisée.", { si: { noeuds: ["cloture_neutre"] }, effets: { stress: -2 }, suivant: "fin" })
   );

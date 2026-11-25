@@ -307,7 +307,7 @@ exemples: ["Parle-moi de toi.", "Raconte-moi ce que tu fais quand tu n'es pas à
         regles: {
           qualite: 2, effets: { confiance: 1 }, suivant: "regles_test",
           feedback: "Règle posée et testée avec une question impossible : exactement ce que recommande le protocole.",
-          exige: { motif: "comment (s'appelle|il s'appelle|elle s'appelle)|quel est le nom|c'est quoi le (pre)?nom|(pre)?nom de mon|si je te demande",
+          exige: { motif: "comment (s'appelle|il s'appelle|elle s'appelle)|quel est le nom|c'est quoi le (pre)?nom|(pre)?nom de mon|si je te demande|devine",
             sinon: { qualite: 1, suivant: null, reponse: "D'accord.", feedback: "Règle posée, mais pas testée : vérifiez-la avec une question impossible (« Comment s'appelle mon chien ? »)." } }
         }
       },

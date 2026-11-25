@@ -32,7 +32,8 @@ js/ia-exemples.js             exemples annotés pour l'IA + questions courantes 
 js/llm.js                     petit LLM local : formule les réponses de l'enfant avec ses mots (garde-fou inclus)
 js/moteur.js                  moteur générique : état, conditions, silence, soutien, frappe du texte, débrief
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
-scenarios/lea.libre.js        Léa : ~230 options supplémentaires par phase, pour la saisie libre (mode IA) uniquement
+scenarios/lea.libre.js        Léa : ~240 options supplémentaires par phase et indices par étape, pour la saisie libre
+scenarios/lea.reformulations.js  Léa : ~660 autres façons de poser chaque question (≈ 100 à 140 formulations par étape)
 scenarios/noah.js             Noah, 6 ans, témoin (conflit de loyauté, récit déjà influencé par les adultes)
 outils/verifier-scenarios.js  vérifie liens, faits, types, conditions et nœuds inatteignables
 outils/lancer.py              lance le jeu (serveur local) et installe l'IA si besoin
@@ -130,6 +131,15 @@ En saisie libre, quand le LLM est lancé par `outils/lancer.py`, la réplique de
 - **un garde-fou** rejette toute réplique qui ajoute des informations, perd l'essentiel de la réponse prévue (90 % des mots exigés pendant la transition et le récit) ou aborde un sujet de l'enquête (`saisieLibre.sensibles`). La réplique écrite du scénario est alors affichée. Même chose si le LLM est absent ou met plus de 20 secondes.
 
 Le débrief marque les répliques formulées par le LLM (✎ LLM). Pour changer de modèle, modifiez `LLM_FICHIER` et `LLM_URL` dans `outils/telecharger-ia.py`.
+
+## Indices pour l'enquêteur
+
+Le bouton **💡 Besoin d'un indice ?** donne une consigne générale quand on ne sait pas quoi dire. Chaque clic en donne une plus précise, sans jamais fournir la phrase toute faite :
+
+- **ordre des indices** : l'état de l'enfant d'abord, s'il est très tendu ou sur la réserve, puis les indices propres à l'étape (`saisieLibre.indices` dans `lea.libre.js`), puis les consignes générales de la phase (`INDICES` dans `js/moteur.js`, valables pour tous les scénarios) ;
+- **exemple** : « Essayez de mettre Léa à l'aise », puis « Présentez-vous : qui vous êtes et en quoi consiste votre travail », puis un conseil de méthode.
+
+Le débrief compte les indices demandés.
 
 ## Travailler à 4
 

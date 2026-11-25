@@ -209,6 +209,10 @@ kbd{font:600 12px Lexend,sans-serif;border:1px solid currentColor;border-radius:
 .libre textarea{flex:1;resize:vertical;min-height:58px;font:16px/1.45 "Atkinson Hyperlegible",system-ui,sans-serif;color:var(--ink);background:var(--carte);border:1.5px solid var(--ligne);border-radius:12px;padding:10px 14px}
 .libre textarea:focus{outline:none;border-color:var(--canard);box-shadow:0 0 0 3px rgba(47,127,134,.2)}
 .libre .btn{flex:none;align-self:flex-end}
+.btn-indice{display:flex;align-items:center;gap:6px;background:transparent;border:1.5px solid #c89416;color:var(--ink);border-radius:999px;padding:8px 14px;min-height:44px;cursor:pointer;font-size:14px}
+.btn-indice:hover{background:light-dark(#fdf3da,#3a3218)}
+.indice{background:light-dark(#fdf3da,#3a3218);border-inline-start:5px solid #c89416;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:15px;animation:apparait .3s}
+.console.occupee .btn-indice{opacity:.35;pointer-events:none}
 .saut-etapes{font-size:13.5px;font-weight:700;color:var(--t-cho)}
 .par-llm{font-style:normal;font:600 11px Lexend,sans-serif;color:var(--t-sou);border:1px solid currentColor;border-radius:6px;padding:0 5px;margin-inline-start:4px}
 .retour .interpretation,.journal .interp{font-size:13.5px;color:var(--doux);font-style:italic}

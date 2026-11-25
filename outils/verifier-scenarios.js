@@ -123,6 +123,20 @@ for (const [cle, sc] of Object.entries(window.SCENARIOS)) {
       }
     });
   }
+  // reformulations : chaque clé doit être la question exacte d'une option existante
+  if (sl && sl.reformulations) {
+    const questions = new Set();
+    for (const n of Object.values(N)) [...(n.choix || []), ...(n.libre || [])].forEach((c) => questions.add(c.question));
+    Object.values(sl.parPhase || {}).forEach((l) => l.forEach((c) => questions.add(c.question)));
+    (sl.globaux || []).forEach((c) => questions.add(c.question));
+    let nb = 0;
+    for (const [q, l] of Object.entries(sl.reformulations)) {
+      if (!questions.has(q)) err(`reformulations : aucune option n'a pour question « ${q.slice(0, 60)}… »`);
+      if (!Array.isArray(l) || l.some((x) => typeof x !== "string")) err(`reformulations « ${q.slice(0, 40)}… » : liste de phrases attendue`);
+      else nb += l.length;
+    }
+    console.log(`  ${nb} reformulations pour ${Object.keys(sl.reformulations).length} questions`);
+  }
   marquesLues.forEach(([m, ou]) => { if (!marquesPosees.has(m)) avert(`${ou} : la marque "${m}" n'est jamais posée`); });
 
   // atteignabilité
