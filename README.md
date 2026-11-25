@@ -9,12 +9,17 @@ L'enfant réagit selon le type d'intervention et selon son état (confiance, str
 Ouvrez `index.html` dans un navigateur. Il n'y a rien à installer.
 Pour le mettre en ligne, poussez le repo sur GitHub puis activez **Settings → Pages → branche `main`, dossier racine**.
 
+Une connexion est demandée à l'ouverture (démonstration de produit sous licence) ; les identifiants sont fournis avec la licence. « Rester connecté sur ce poste » garde la session après fermeture du navigateur ; « Se déconnecter » est dans la barre du haut.
+
+> La vérification se fait dans le navigateur (seule l'empreinte SHA-256 des identifiants est dans le code) : c'est une vitrine, pas une protection réelle. Pour changer les identifiants, voir l'en-tête de `js/licence.js`.
+
 ## Structure
 
 ```
 index.html                    couloir (liège + porte), salle (décor, enfant SVG animé, console, transcription),
                               débrief, fiches « Protocole NICHD » et « Comment jouer »
 style.css                     styles et animations de l'enfant (expressions, agitation, réactions)
+js/licence.js                 écran de connexion (licence) : identifiants, session, déconnexion
 js/moteur.js                  moteur générique : état, conditions, silence, soutien, frappe du texte, débrief
 scenarios/lea.js              Léa, 8 ans, victime (le format complet est documenté en tête du fichier)
 scenarios/noah.js             Noah, 6 ans, témoin (conflit de loyauté, récit déjà influencé par les adultes)

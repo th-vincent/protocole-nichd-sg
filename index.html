@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="verrouille">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,6 +10,39 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- ───────── CONNEXION (licence) ───────── -->
+<div id="ecran-login" class="login" hidden>
+  <div class="login-fond" aria-hidden="true"></div>
+  <main class="login-carte" aria-labelledby="login-titre">
+    <div class="marque">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <p class="titre-app">Salle Mélanie</p>
+        <p class="sous">Simulateur d'audition d'enfants · protocole NICHD</p>
+      </div>
+    </div>
+    <h1 id="login-titre">Connexion à votre espace</h1>
+    <p class="login-intro">Accès réservé aux utilisateurs de la licence de votre établissement.</p>
+    <form id="form-login" novalidate>
+      <label for="login-id">Identifiant</label>
+      <input id="login-id" name="identifiant" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      <label for="login-mdp">Mot de passe</label>
+      <div class="login-mdp">
+        <input id="login-mdp" name="mot-de-passe" type="password" autocomplete="current-password" required>
+        <button type="button" id="login-voir" class="login-voir" aria-pressed="false" aria-controls="login-mdp">Afficher</button>
+      </div>
+      <div class="login-options">
+        <label class="login-case"><input type="checkbox" id="login-rester"> Rester connecté sur ce poste</label>
+        <button type="button" class="login-lien" id="login-oubli">Mot de passe oublié ?</button>
+      </div>
+      <p class="login-erreur" id="login-erreur" role="alert" aria-live="assertive"></p>
+      <button class="btn principal login-btn" type="submit">Se connecter</button>
+    </form>
+    <p class="login-licence" id="licence-info"></p>
+  </main>
+  <p class="login-pied">© 2026 Salle Mélanie · outil de formation · usage soumis aux conditions de la licence</p>
+</div>
 
 <!-- ───────── BARRE DU MENU ───────── -->
 <header class="barre-haut" id="barre-haut">
@@ -23,6 +56,8 @@
   <nav class="nav-haut">
     <button class="lien-nav" data-ouvre="dlg-protocole">Le protocole NICHD</button>
     <button class="lien-nav" data-ouvre="dlg-aide">Comment jouer</button>
+    <span class="compte" id="compte" hidden><span class="compte-nom" id="utilisateur"></span>
+      <button class="lien-nav" id="btn-deconnexion">Se déconnecter</button></span>
   </nav>
 </header>
 
@@ -440,6 +475,7 @@
   </div>
 </dialog>
 
+<script src="js/licence.js"></script>
 <script src="scenarios/lea.js"></script>
 <script src="scenarios/noah.js"></script>
 <script src="js/moteur.js"></script>
