@@ -329,126 +329,198 @@
 <dialog id="dlg-protocole" class="dlg dossier-dlg" aria-labelledby="titre-protocole">
   <div class="dlg-tete">
     <p class="tampon">Fiche de formation</p>
-    <h2 id="titre-protocole">Le protocole NICHD, en résumé</h2>
+    <h2 id="titre-protocole">Le protocole NICHD</h2>
     <button class="dlg-fermer" data-ferme aria-label="Fermer">✕</button>
   </div>
-  <article class="dlg-corps protocole">
-    <nav class="sommaire" aria-label="Sommaire">
-      <a href="#p-origine">Origine</a><a href="#p-principes">Principes</a><a href="#p-etapes">Étapes</a><a href="#p-questions">Types de questions</a><a href="#p-reticent">Enfant réticent</a><a href="#p-erreurs">Erreurs fréquentes</a><a href="#p-cadre">Cadre français</a>
+  <div class="fiche-nichd">
+    <nav class="fiche-nav" aria-label="Sections de la fiche">
+      <p class="fiche-groupe">Les bases</p>
+      <button data-section="essentiel">L'essentiel</button>
+      <button data-section="questions">Types de questions</button>
+      <p class="fiche-groupe">Les étapes</p>
+      <button data-section="introduction" data-phase="introduction"><span>1</span>Introduction</button>
+      <button data-section="regles" data-phase="regles"><span>2</span>Règles de base</button>
+      <button data-section="rapport" data-phase="rapport"><span>3</span>Rapport</button>
+      <button data-section="memoire" data-phase="memoire"><span>4</span>Mémoire épisodique</button>
+      <button data-section="transition" data-phase="transition"><span>5</span>Transition</button>
+      <button data-section="recit" data-phase="recit"><span>6</span>Récit libre</button>
+      <button data-section="precisions"><span>7</span>Questions ciblées</button>
+      <button data-section="revelation"><span>8</span>Révélation</button>
+      <button data-section="cloture" data-phase="cloture"><span>9</span>Clôture</button>
+      <p class="fiche-groupe">Situations difficiles</p>
+      <button data-section="reticent">Enfant réticent</button>
+      <button data-section="erreurs">Erreurs fréquentes</button>
+      <button data-section="cadre">Cadre français</button>
     </nav>
 
-    <h3 id="p-origine">1. D'où vient le protocole ?</h3>
-    <p>Le protocole NICHD a été développé à la fin des années 1990 par une équipe de chercheurs (Michael Lamb, Yael Orbach, Irit Hershkowitz, Kathleen Sternberg…) associée au <i>National Institute of Child Health and Human Development</i> américain. Il traduit en un guide d'entretien structuré plusieurs décennies de recherche sur la mémoire de l'enfant, la suggestibilité et la manière dont les questions de l'adulte façonnent le témoignage.</p>
-    <p>Son objectif est double : <b>obtenir le récit le plus complet possible</b> à partir de la mémoire libre de l'enfant, et <b>préserver la fiabilité</b> de ce récit en limitant au maximum les informations apportées par l'enquêteur. Les études de terrain montrent qu'avec le protocole, les enquêteurs posent beaucoup plus de questions ouvertes et obtiennent davantage de détails, et des détails plus exacts.</p>
-    <p>Une version <b>révisée</b> (années 2010) renforce la mise en confiance et ajoute des propos de soutien non suggestifs, pour mieux accompagner les enfants réticents.</p>
+    <div class="fiche-pages" tabindex="-1">
+      <section data-page="essentiel">
+        <h3>L'essentiel</h3>
+        <p class="but">Obtenir le récit le plus complet possible <b>à partir de la mémoire libre</b> de l'enfant, sans rien lui souffler.</p>
+        <ul class="regles-or">
+          <li><b>Ouvert d'abord.</b> « Raconte-moi… » donne des réponses bien plus exactes qu'une question précise. On épuise le récit libre avant de cibler.</li>
+          <li><b>N'apporter aucune information.</b> Lieu, personne, geste, émotion : ce que l'enfant n'a pas dit n'apparaît pas dans vos questions.</li>
+          <li><b>Reprendre ses mots.</b> « Tu as dit qu'il serrait fort. Raconte-moi tout sur ça. »</li>
+          <li><b>Ne pas interrompre</b>, tolérer de courts silences.</li>
+          <li><b>Soutenir l'effort, jamais le contenu.</b> Ni promesse, ni pression.</li>
+          <li><b>S'adapter à l'âge</b> : avant 7-8 ans, dates, heures et nombres sont fragiles.</li>
+        </ul>
+        <p class="note">Développé à la fin des années 1990 (Lamb, Orbach, Hershkowitz, Sternberg…, NICHD, États-Unis), révisé dans les années 2010 pour mieux soutenir les enfants réticents.</p>
+      </section>
 
-    <h3 id="p-principes">2. Les principes qui guident tout l'entretien</h3>
-    <ul>
-      <li><b>La mémoire de rappel avant tout.</b> Ce que l'enfant dit en réponse à une invitation ouverte (« Raconte-moi… ») est en moyenne bien plus exact que ce qu'il dit en réponse à une question précise. On épuise donc toujours le récit libre avant de poser des questions ciblées.</li>
-      <li><b>L'enquêteur n'apporte aucune information.</b> Lieu, personne, geste, émotion : tout ce que l'enfant n'a pas encore dit ne doit pas apparaître dans les questions. Une information introduite par l'adulte peut être reprise par l'enfant et intégrée à son souvenir : c'est la <b>contamination</b>.</li>
-      <li><b>On reprend les mots de l'enfant.</b> « Tu as dit qu'il serrait fort. Raconte-moi tout sur ça. » On ne reformule pas avec des mots d'adulte (« agression », « violence », « frapper ») que l'enfant n'a pas employés.</li>
-      <li><b>On n'interrompt pas.</b> On laisse l'enfant aller au bout de son idée et on tolère de courts silences : ils laissent le temps de se souvenir.</li>
-      <li><b>Pas de « pourquoi ».</b> Les questions en « pourquoi » obligent l'enfant à expliquer l'intention d'un adulte, et sont souvent entendues comme un reproche.</li>
-      <li><b>On ne répète pas une question qui a déjà reçu une réponse.</b> L'enfant peut en conclure que sa première réponse était « fausse » et la modifier.</li>
-      <li><b>On soutient l'effort, jamais le contenu.</b> « Tu m'aides beaucoup », « Tu fais beaucoup d'efforts » sont encouragés. « Ce que tu me dis est très important sur lui » ou « Il n'avait pas le droit de faire ça » sont à proscrire.</li>
-      <li><b>Pas de promesse, ni de menace.</b> L'enquêteur ne promet ni ce qui va arriver (« tu ne le reverras plus »), ni une récompense, et ne met jamais la pression (« tu dois répondre »).</li>
-      <li><b>On s'adapte au développement.</b> Avant 7-8 ans, les notions de date, d'heure, de durée ou de nombre sont fragiles. On s'appuie sur les repères de l'enfant (« le soir du match », « après l'école ») plutôt que sur le calendrier.</li>
-    </ul>
+      <section data-page="questions">
+        <h3>Types de questions</h3>
+        <p class="but">Du plus recommandé au plus risqué.</p>
+        <div class="tableau-defile">
+        <table>
+          <thead><tr><th>Type</th><th>Exemple</th><th>Quand</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pastille t-ouv">Invitation</span></td><td>« Raconte-moi tout. » « Et ensuite ? »</td><td>Le plus souvent possible.</td></tr>
+            <tr><td><span class="pastille t-ind">Invitation indicée</span></td><td>« Tu as parlé de [X]. Raconte-moi tout sur [X]. »</td><td>Pour approfondir un mot de l'enfant.</td></tr>
+            <tr><td><span class="pastille t-sou">Soutien</span></td><td>« Tu m'aides beaucoup. Prends ton temps. »</td><td>Enfant tendu ou réticent.</td></tr>
+            <tr><td><span class="pastille t-dir">Directive</span></td><td>« Où était la marque ? »</td><td>Après le récit libre, sur un élément déjà dit.</td></tr>
+            <tr><td><span class="pastille t-cho">Fermée / à choix</span></td><td>« Une fois ou plus d'une fois ? »</td><td>En dernier recours.</td></tr>
+            <tr><td><span class="pastille t-sug">Suggestive</span></td><td>« Il t'a frappée, c'est ça ? »</td><td>Jamais.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
 
-    <h3 id="p-etapes">3. Les étapes de l'audition</h3>
-    <h4>Avant l'audition : la préparation</h4>
-    <p>L'enquêteur prend connaissance du dossier (âge, signalement, contexte familial) mais reste prudent : connaître l'allégation ne doit pas devenir une hypothèse à confirmer. Le risque est de chercher à vérifier ce qu'on croit savoir et de « souffler » les réponses. On note les informations utiles pour le rapport (prénom, activités, personnes significatives) et les termes employés par l'enfant lors de sa première révélation.</p>
+      <section data-page="introduction">
+        <h3><span class="num-etape">1</span>Introduction</h3>
+        <p class="but">Poser le cadre : qui vous êtes, ce qu'on fait ici. Rien sur les faits.</p>
+        <div class="dire"><p class="etiquette">À dire</p>
+          <p>« Je m'appelle Camille, je suis gendarme. Mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées. »</p>
+          <p>« Tu vois la caméra ? Elle filme, comme ça je n'ai pas besoin de tout écrire. »</p></div>
+        <div class="eviter"><p class="etiquette">À éviter</p>
+          <p>« Ta maîtresse m'a dit pourquoi tu es là. » · « N'aie pas peur, tu n'as rien fait de mal. »</p></div>
+        <p class="note">Un accueil chaleureux d'abord, puis le rôle et la caméra juste après : c'est correct.</p>
+      </section>
 
-    <h4>1. Introduction</h4>
-    <p>L'enquêteur se présente (prénom, fonction), explique son rôle (« mon travail, c'est de parler avec des enfants de choses qui leur sont arrivées ») et l'enregistrement (« la caméra filme pour que je n'aie pas besoin de tout écrire »). <b>Aucune allusion aux faits.</b></p>
+      <section data-page="regles">
+        <h3><span class="num-etape">2</span>Règles de base</h3>
+        <p class="but">Expliquer chaque règle, <b>puis la tester</b> avec un exemple concret.</p>
+        <div class="dire"><p class="etiquette">À dire</p>
+          <p><b>Je ne sais pas</b> : « Comment s'appelle mon chien ? »</p>
+          <p><b>Je ne comprends pas</b> : « Dis-le-moi, je dirai autrement. »</p>
+          <p><b>Tu peux me corriger</b> : « Si je dis que tu as deux ans ? »</p>
+          <p><b>Vrai / pas vrai</b> : « Mes chaussures sont rouges : vrai ou pas vrai ? », puis « Tu promets de dire seulement ce qui s'est vraiment passé ? »</p></div>
+        <div class="eviter"><p class="etiquette">À éviter</p>
+          <p>« Tu sais ce que c'est, un mensonge ? » (trop abstrait) · « Tu dois répondre à tout. » (pousse à deviner)</p></div>
+      </section>
 
-    <h4>2. Règles de base</h4>
-    <p>On explique puis on teste les règles avec un exemple concret :</p>
-    <ul>
-      <li><b>« Je ne sais pas »</b> : « Si je te demande comment s'appelle mon chien, tu dis quoi ? »</li>
-      <li><b>« Je ne comprends pas »</b> : l'enfant peut demander qu'on reformule.</li>
-      <li><b>« Tu peux me corriger »</b> : « Si je dis que tu as deux ans, tu dis quoi ? »</li>
-      <li><b>Dire ce qui s'est vraiment passé</b> : plutôt qu'une définition abstraite de la vérité et du mensonge, on fait un test concret (« Si je dis que mes chaussures sont rouges, c'est vrai ou pas vrai ? »), puis on demande une promesse simple (« Tu promets de me dire seulement ce qui s'est vraiment passé ? »). Cette promesse améliore l'exactitude des récits.</li>
-    </ul>
+      <section data-page="rapport">
+        <h3><span class="num-etape">3</span>Rapport</h3>
+        <p class="but">Faire connaissance et habituer l'enfant <b>à parler longuement</b> pendant que vous écoutez.</p>
+        <div class="dire"><p class="etiquette">À dire</p>
+          <p>« Raconte-moi les choses que tu aimes faire. » · « Tu as parlé de [X]. Raconte-moi tout sur [X]. »</p></div>
+        <div class="eviter"><p class="etiquette">À éviter</p>
+          <p>Les questions fermées en série (« Tu aimes l'école ? »). Les sujets liés aux faits (lieu, personnes, jour).</p></div>
+      </section>
 
-    <h4>3. Établissement du rapport</h4>
-    <p>On fait connaissance avec l'enfant par des <b>invitations ouvertes</b> sur ce qu'il aime (« Raconte-moi ce que tu aimes faire »). Ce moment n'est pas une formalité : il habitue l'enfant à parler longuement pendant que l'adulte écoute. Des questions fermées (« Tu aimes l'école ? ») installent au contraire un ping-pong de réponses courtes. On évite les sujets liés aux faits (le lieu, les personnes impliquées, le jour des faits).</p>
+      <section data-page="memoire">
+        <h3><span class="num-etape">4</span>Mémoire épisodique</h3>
+        <p class="but">S'entraîner au récit détaillé sur un événement <b>neutre et récent</b>.</p>
+        <div class="dire"><p class="etiquette">À dire</p>
+          <p>« Raconte-moi ton dernier anniversaire, du début à la fin. » · « Et ensuite ? »</p>
+          <p>Pour finir : « Tu m'as raconté plein de détails, c'est comme ça que j'ai besoin que tu me racontes. »</p></div>
+        <div class="eviter"><p class="etiquette">À éviter</p>
+          <p>Demander une date ou une heure. Valoriser le contenu plutôt que la manière.</p></div>
+      </section>
 
-    <h4>4. Entraînement à la mémoire épisodique</h4>
-    <p>On demande le récit d'un événement récent et neutre (un anniversaire, la matinée du jour) « du début à la fin », puis on relance avec « Et ensuite ? », « Raconte-moi plus sur [détail donné par l'enfant] », « Raconte-moi tout ce qui s'est passé depuis [X] jusqu'à [Y] ». L'enfant s'entraîne au récit détaillé et l'enquêteur s'entraîne aux invitations. On termine en valorisant la manière : « Tu m'as raconté plein de détails, c'est comme ça que j'ai besoin que tu me racontes les choses. »</p>
+      <section data-page="transition">
+        <h3><span class="num-etape">5</span>Transition vers les faits</h3>
+        <p class="but">Du plus ouvert au plus ciblé : on ne passe au palier suivant <b>que si le précédent échoue</b>.</p>
+        <ol class="paliers">
+          <li>« <b>Dis-moi pourquoi tu es là.</b> »</li>
+          <li>« J'ai entendu dire que tu as parlé à [personne]. Dis-moi ce dont vous avez parlé. » <small>(la source, pas le contenu)</small></li>
+          <li>« J'ai entendu dire que quelque chose t'est peut-être arrivé à [lieu]. Raconte-moi tout. » <small>(avec précaution)</small></li>
+          <li>Dernier recours : plus direct, toujours suivi d'une invitation ouverte.</li>
+        </ol>
+        <p class="note">Enfant bloqué ? Revenir au soutien et au rapport plutôt que forcer.</p>
+      </section>
 
-    <h4>5. Transition vers les faits</h4>
-    <p>Les incitations vont de la plus ouverte à la plus ciblée, et on ne passe à la suivante que si la précédente échoue :</p>
-    <ol>
-      <li>« Maintenant que je te connais mieux, je voudrais parler de la raison pour laquelle tu es venu(e). <b>Dis-moi pourquoi tu es là.</b> »</li>
-      <li>« J'ai entendu dire que tu as parlé à [personne] / vu [professionnel]. <b>Dis-moi ce dont vous avez parlé.</b> » (on évoque la source, pas le contenu)</li>
-      <li>« J'ai entendu dire que quelque chose t'est peut-être arrivé à [lieu / moment]. Raconte-moi tout. » (avec de grandes précautions)</li>
-      <li>En tout dernier recours seulement : des formulations plus directes, toujours suivies d'une invitation ouverte.</li>
-    </ol>
-    <p>Si l'enfant reste silencieux ou réticent, le protocole révisé recommande de revenir au soutien et au rapport plutôt que de « forcer ».</p>
+      <section data-page="recit">
+        <h3><span class="num-etape">6</span>Récit libre</h3>
+        <p class="but">Laisser l'enfant tout raconter, puis relancer <b>avec ses mots</b>.</p>
+        <div class="dire"><p class="etiquette">À dire</p>
+          <p>« Raconte-moi tout ce qui s'est passé, du début à la fin. »</p>
+          <p>« Et ensuite ? » · « Tu as dit [X]. Raconte-moi tout sur ça. »</p>
+          <p>« Raconte-moi ce qui s'est passé depuis [A] jusqu'à [B]. »</p></div>
+        <div class="eviter"><p class="etiquette">À éviter</p>
+          <p>Interrompre. Reformuler avec vos mots (« agression », « frapper »). Les « pourquoi ».</p></div>
+        <p class="note">Plusieurs fois ? « Une fois ou plus d'une fois ? », puis explorer séparément la dernière, la première, celle dont il se souvient le mieux.</p>
+      </section>
 
-    <h4>6. Investigation : le récit libre</h4>
-    <p>Dès que l'enfant évoque les faits, on l'invite à tout raconter : « Raconte-moi tout ce qui s'est passé, depuis le début jusqu'à la fin. » Puis on travaille avec trois outils :</p>
-    <ul>
-      <li><b>L'invitation de suite</b> : « Et ensuite ? », « Et puis ? »</li>
-      <li><b>L'invitation indicée</b> (on reprend un mot de l'enfant) : « Tu as dit qu'Inès a vu. Raconte-moi tout sur ça. »</li>
-      <li><b>La segmentation temporelle</b> : « Raconte-moi tout ce qui s'est passé depuis le moment où [action A] jusqu'au moment où [action B]. »</li>
-    </ul>
-    <p><b>Plusieurs faits ?</b> On demande « Est-ce que c'est arrivé une fois ou plus d'une fois ? ». Si c'est arrivé plusieurs fois, on explore séparément « la dernière fois », « la première fois », « la fois dont tu te souviens le mieux », en reprenant pour chacune les mots de l'enfant.</p>
+      <section data-page="precisions">
+        <h3><span class="num-etape">7</span>Questions ciblées, puis pause</h3>
+        <p class="but">Une fois le récit libre épuisé, préciser <b>ce que l'enfant a déjà évoqué</b>.</p>
+        <div class="dire"><p class="etiquette">À dire</p>
+          <p>Directive + invitation (« appariement ») : « Tu as parlé d'une marque. Où était-elle ? … Raconte-moi tout sur ça. »</p></div>
+        <div class="eviter"><p class="etiquette">À éviter</p>
+          <p>Une question fermée pour introduire un élément nouveau. Répéter une question déjà répondue.</p></div>
+        <p class="note">La pause permet de relire ses notes ou de consulter l'équipe, puis de revenir sur les points flous.</p>
+      </section>
 
-    <h4>7. Questions directives et fermées, puis pause</h4>
-    <p>Une fois le récit libre épuisé, on peut préciser ce qui manque par des <b>questions directives</b> (qui, quoi, où, quand, comment) qui portent sur un élément <b>déjà mentionné</b> par l'enfant : « Tu as parlé d'une marque. Où était-elle ? ». Chaque question directive est suivie d'une invitation ouverte : c'est l'<b>appariement</b> (« … Raconte-moi tout sur ça »). Les questions fermées (oui/non, choix) n'arrivent qu'en dernier recours, et jamais pour introduire un élément nouveau.</p>
-    <p>Une <b>pause</b> permet à l'enquêteur de relire ses notes ou de consulter ses collègues derrière la caméra, puis de revenir sur les points restés flous.</p>
+      <section data-page="revelation">
+        <h3><span class="num-etape">8</span>Révélation</h3>
+        <p class="but">Savoir à qui l'enfant en a parlé, et donc <b>qui a pu influencer</b> son récit.</p>
+        <div class="dire"><p class="etiquette">À dire</p>
+          <p>« Qui a été la première personne à savoir ? » · « Comment est-ce qu'elle l'a su ? »</p></div>
+      </section>
 
-    <h4>8. Informations sur la révélation</h4>
-    <p>« Qui a été la première personne à savoir ce qui s'est passé ? », « Comment est-ce que [cette personne] l'a su ? ». Ces questions éclairent le contexte de la révélation et les éventuelles discussions préalables avec des adultes, qui ont pu influencer le récit.</p>
+      <section data-page="cloture">
+        <h3><span class="num-etape">9</span>Clôture</h3>
+        <p class="but">Terminer en douceur, sans rien promettre.</p>
+        <div class="dire"><p class="etiquette">À dire</p>
+          <p>« Y a-t-il autre chose que je devrais savoir ? » · « Est-ce que tu as des questions ? »</p>
+          <p>« Merci, tu as fait beaucoup d'efforts. » Puis un sujet neutre : « Qu'est-ce que tu vas faire cet après-midi ? »</p></div>
+        <div class="eviter"><p class="etiquette">À éviter</p>
+          <p>« Grâce à toi, on va pouvoir… » · « Tu ne le reverras plus. »</p></div>
+      </section>
 
-    <h4>9. Clôture</h4>
-    <p>« Y a-t-il autre chose que tu penses que je devrais savoir ? », « Est-ce que tu as des questions ? ». On remercie l'enfant pour ses efforts (pas pour le contenu), on répond honnêtement à ses questions sans rien promettre, et on termine par un sujet neutre (« Qu'est-ce que tu vas faire cet après-midi ? ») pour qu'il quitte la salle apaisé.</p>
+      <section data-page="reticent">
+        <h3>Enfant stressé ou réticent</h3>
+        <p class="but">Signes : réponses de plus en plus courtes, regard fuyant, agitation, envie de partir.</p>
+        <ul class="regles-or">
+          <li><b>Ralentir</b> : sous stress, l'enfant acquiesce plus facilement aux suggestions.</li>
+          <li><b>Soutenir sans suggérer</b> : « Je vois que c'est difficile. On a le temps. »</li>
+          <li><b>Revenir au rapport</b> un moment, puis reprendre la transition.</li>
+          <li><b>Accepter une audition incomplète</b> plutôt qu'un récit obtenu sous pression.</li>
+          <li><b>Conflit de loyauté</b> : aucun jugement sur le proche mis en cause.</li>
+        </ul>
+      </section>
 
-    <h3 id="p-questions">4. La hiérarchie des questions</h3>
-    <div class="tableau-defile">
-    <table>
-      <thead><tr><th>Type</th><th>Exemple</th><th>À utiliser</th></tr></thead>
-      <tbody>
-        <tr><td><span class="pastille t-ouv">Invitation</span></td><td>« Raconte-moi tout ce qui s'est passé. » « Et ensuite ? »</td><td>Le plus souvent possible. Base de l'entretien.</td></tr>
-        <tr><td><span class="pastille t-ind">Invitation indicée</span></td><td>« Tu as parlé de [X]. Raconte-moi tout sur [X]. »</td><td>Pour approfondir un détail donné par l'enfant.</td></tr>
-        <tr><td><span class="pastille t-sou">Soutien</span></td><td>« Tu m'aides beaucoup. Prends ton temps. »</td><td>Quand l'enfant est tendu ou réticent. Jamais sur le contenu.</td></tr>
-        <tr><td><span class="pastille t-dir">Directive</span></td><td>« Où était la marque ? » « Qui est Inès ? »</td><td>Après le récit libre, sur un élément déjà évoqué, puis appariement.</td></tr>
-        <tr><td><span class="pastille t-cho">Fermée / à choix</span></td><td>« Une fois ou plus d'une fois ? » « Il était en colère ou il riait ? »</td><td>En dernier recours. Le choix imposé pousse à choisir une option.</td></tr>
-        <tr><td><span class="pastille t-sug">Suggestive</span></td><td>« Il t'a frappée, c'est ça ? » « Ça a dû te faire peur. »</td><td>Jamais. Contient ou présuppose la réponse.</td></tr>
-      </tbody>
-    </table>
+      <section data-page="erreurs">
+        <h3>Erreurs fréquentes</h3>
+        <ul class="erreurs">
+          <li>Reprendre les termes du signalement avant l'enfant (« le monsieur », « ton bras »).</li>
+          <li>Poser deux questions à la fois.</li>
+          <li>Attribuer une émotion (« tu as dû avoir peur ») au lieu de la demander.</li>
+          <li>Mettre en doute une réponse (« tu es sûr ? »).</li>
+          <li>Demander dates, heures ou nombres à un jeune enfant.</li>
+          <li>Promettre, ou remercier pour le contenu.</li>
+          <li>Laisser le silence devenir une pression.</li>
+        </ul>
+      </section>
+
+      <section data-page="cadre">
+        <h3>Le cadre français</h3>
+        <ul class="regles-or">
+          <li>Auditions de mineurs victimes dans des <b>salles adaptées</b> (« salles Mélanie » en gendarmerie).</li>
+          <li><b>Enregistrement audiovisuel</b> obligatoire (code de procédure pénale, art. 706-52) : l'enfant n'a pas à répéter son récit.</li>
+          <li>Les <b>UAPED</b> permettent aussi l'audition à l'hôpital.</li>
+          <li>Le protocole NICHD fait partie des méthodes enseignées aux enquêteurs spécialisés.</li>
+        </ul>
+        <p class="note">Résumé pédagogique simplifié, rédigé pour ce prototype. Il ne remplace ni la formation des enquêteurs ni les textes officiels.</p>
+      </section>
+
+      <div class="fiche-pied">
+        <button class="btn secondaire" id="fiche-prec">← <span></span></button>
+        <button class="btn secondaire" id="fiche-suiv"><span></span> →</button>
+      </div>
     </div>
-
-    <h3 id="p-reticent">5. Face à un enfant stressé ou réticent</h3>
-    <p>Un enfant peut se fermer pour de nombreuses raisons : peur des conséquences, loyauté envers un proche mis en cause, honte, consignes de silence, fatigue. Signes à repérer : réponses de plus en plus courtes, regard fuyant, agitation, repli sur soi, demande de partir.</p>
-    <ul>
-      <li><b>Ralentir.</b> Ce n'est pas le moment de multiplier les questions précises : sous stress, l'enfant acquiesce plus facilement aux suggestions et répond pour que ça s'arrête.</li>
-      <li><b>Soutenir sans suggérer</b> : reconnaître l'effort et la difficulté (« Je vois que c'est difficile, tu fais beaucoup d'efforts »), rappeler qu'on a le temps.</li>
-      <li><b>Revenir au rapport</b> quelques instants (un sujet que l'enfant aime), puis reprendre la transition.</li>
-      <li><b>Accepter une audition incomplète</b> plutôt qu'un récit obtenu sous la pression. Une nouvelle audition reste possible.</li>
-      <li>Avec un enfant confronté à un <b>conflit de loyauté</b> (parent mis en cause), éviter tout jugement sur la personne et ne jamais rendre l'enfant responsable de la suite (« grâce à toi on va pouvoir… »).</li>
-    </ul>
-
-    <h3 id="p-erreurs">6. Erreurs fréquentes</h3>
-    <ul>
-      <li>Reprendre les termes du signalement (« le monsieur », « ton bras ») avant que l'enfant ne les emploie.</li>
-      <li>Reprendre un mot que l'enfant a lui-même repris de l'enquêteur : on renforce la contamination au lieu de la corriger.</li>
-      <li>Poser deux questions à la fois, ou une question à choix dont aucune option ne convient.</li>
-      <li>Attribuer une émotion (« tu as dû avoir peur ») au lieu de la demander (« comment tu t'es senti(e) ? »).</li>
-      <li>Mettre en doute une réponse (« tu es sûr(e) ? ») : l'enfant passe de la certitude au « je crois ».</li>
-      <li>Demander des dates, des heures ou des nombres à un jeune enfant.</li>
-      <li>Rassurer par des promesses ou remercier pour le contenu.</li>
-      <li>Laisser des silences trop longs ou répétés face à un enfant qui ne sait plus quoi dire : le silence soutient le récit, il ne doit pas devenir une pression.</li>
-    </ul>
-
-    <h3 id="p-cadre">7. Le cadre français</h3>
-    <p>En France, les auditions de mineurs victimes se déroulent dans des <b>salles d'audition adaptées</b>, appelées <b>« salles Mélanie »</b> en gendarmerie : un espace chaleureux, équipé d'un dispositif d'enregistrement audiovisuel, avec du matériel adapté à l'âge de l'enfant. L'enregistrement audiovisuel de l'audition des mineurs victimes est prévu par le code de procédure pénale (article 706-52). L'objectif est d'éviter à l'enfant de répéter son récit à de multiples interlocuteurs. Des unités d'accueil pédiatriques enfants en danger (UAPED) permettent aussi de réaliser l'audition en milieu hospitalier.</p>
-    <p>Le protocole NICHD fait partie des méthodes enseignées aux enquêteurs spécialisés dans l'audition des mineurs.</p>
-
-    <p class="avertissement">Résumé pédagogique simplifié, rédigé pour ce prototype. Il ne remplace ni la formation des enquêteurs ni les textes officiels. À faire valider par un formateur NICHD.</p>
-  </article>
+  </div>
 </dialog>
 
 <!-- ───────── DIALOGUE : AIDE ───────── -->
@@ -474,5 +546,6 @@
 <script src="scenarios/noah.js"></script>
 <script src="scenarios/jade.js"></script>
 <script src="js/moteur.js"></script>
+<script src="js/fiche-nichd.js"></script>
 </body>
 </html>
